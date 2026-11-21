@@ -670,9 +670,14 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.fillStyle = "#2E2E2E"; c.fillRect(0, 0, 26, h);
       c.fillStyle = "#508B3F"; c.fillRect(26, h - 120, w - 26, 120);
       c.fillStyle = "#2E2E2E"; c.textAlign = "left";
-      c.font = "bold 150px Arial Black, Arial, sans-serif"; c.fillText("10", 56, 170);
-      c.font = "bold 40px Arial Black, Arial, sans-serif";
-      ["THINGS YOU", "CAN DO", "WITH AI"].forEach((t, i) => c.fillText(t, 58, 240 + i * 50));
+      const fit = (t, size, x, y) => {             // shrink the font until the line fits the cover
+        do { c.font = "bold " + size + "px Arial Black, Arial, sans-serif"; size -= 2; } while (c.measureText(t).width > w - x - 24 && size > 10);
+        c.fillText(t, x, y);
+      };
+      fit("AI FOR", 84, 54, 120);
+      c.fillStyle = "#508B3F"; fit("NORMIES", 72, 54, 196);
+      c.fillStyle = "#2E2E2E";
+      ["10 SIMPLE WAYS", "TO MAKE USE", "OF AI"].forEach((t, i) => fit(t, 32, 58, 262 + i * 42));
       c.fillStyle = "#f3efe4"; c.font = "bold 30px Arial, sans-serif"; c.fillText("FREE EBOOK", 58, h - 50);
     });
     const book = new THREE.Group(); book.position.set(0, 0.99, 0.02); book.rotation.x = -0.45; g.add(book);

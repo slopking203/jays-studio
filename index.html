@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Videos, retro hybrid games, projects and a free ebook: 10 Things You Can Do With AI.">
+<meta name="description" content="Videos, retro hybrid games, projects and a free ebook: AI for Normies.">
 <title>Jay's Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,14 +67,10 @@
     background: var(--raise); border: 1px solid var(--line); border-radius: 16px; padding: 18px;
   }
   .cover {
-    position: relative; width: 112px; aspect-ratio: 400 / 520; max-width: 100%; border-radius: 3px 6px 6px 3px; overflow: hidden;
-    background: var(--gold); color: var(--charcoal); padding: 10px 8px 0 16px;
-    box-shadow: 0 14px 30px rgba(0,0,0,0.5), inset 7px 0 0 var(--charcoal);
+    display: block; width: 112px; height: auto; aspect-ratio: 800 / 1280; max-width: 100%; border-radius: 3px 6px 6px 3px; object-fit: cover;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.5);
     transform: rotate(-3deg);
   }
-  .cover .n { display: block; font: 700 40px/0.9 var(--font-display); }
-  .cover .t { display: block; margin-top: 6px; font: 700 10.5px/1.15 var(--font-display); text-transform: uppercase; }
-  .cover .f { position: absolute; left: 7px; right: 0; bottom: 0; background: var(--green); color: var(--paper); font: 600 9px/1 var(--font-body); letter-spacing: 0.12em; padding: 8px 9px; }
   .ebook .kicker { margin: 0; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
   .ebook h2 { margin: 4px 0 6px; font: 700 20px/1.2 var(--font-display); text-wrap: balance; }
   .ebook .pitch { margin: 0; color: var(--muted); }
@@ -123,10 +119,7 @@
 
   @media (max-width: 420px) {
     .ebook { grid-template-columns: 84px 1fr; gap: 14px; }
-    .cover { width: 84px; padding: 8px 6px 0 13px; }
-    .cover .n { font-size: 30px; }
-    .cover .t { font-size: 8px; }
-    .cover .f { font-size: 7px; padding: 6px 7px; }
+    .cover { width: 84px; }
   }
   @media (prefers-reduced-motion: reduce) { .cover { transform: none; } }
 </style>
@@ -150,14 +143,10 @@
   </div>
 
   <article class="ebook" aria-labelledby="ebookTitle">
-    <div class="cover" aria-hidden="true">
-      <span class="n">10</span>
-      <span class="t">Things you can do with AI</span>
-      <span class="f">FREE EBOOK</span>
-    </div>
+    <img class="cover" src="ebook/cover-small.jpg" alt="" width="112" height="179" decoding="async">
     <div>
       <p class="kicker" id="ebookKicker">Free ebook</p>
-      <h2 id="ebookTitle">10 Things You Can Do With AI</h2>
+      <h2 id="ebookTitle">AI for Normies: 10 Simple Ways to Make Use of AI</h2>
       <p class="pitch" id="ebookPitch"></p>
     </div>
     <form id="signup" novalidate>

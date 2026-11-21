@@ -18,7 +18,7 @@ window.SITE = {
      swap the number in the address. signupUrl, if set, replaces the form
      with a button to that page instead. */
   ebook: {
-    title: "10 Things You Can Do With AI",
+    title: "AI for Normies: 10 Simple Ways to Make Use of AI",
     kicker: "Free ebook",
     pitch: "Ten practical things you can do with AI this week, each one written so you can try it in an evening. Join the list and it's yours free.",
     cta: "Send me the ebook",

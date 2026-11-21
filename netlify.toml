@@ -1,2 +1,8 @@
 [build]
   publish = "."
+
+# The ebook was renamed. Old links (like the first Kit emails) still get the new PDF.
+[[redirects]]
+  from = "/ebook/10-things-you-can-do-with-ai.pdf"
+  to = "/ebook/ai-for-normies.pdf"
+  status = 301
