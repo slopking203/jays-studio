@@ -115,6 +115,10 @@
   .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
   .chips li { font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,200,87,0.4); color: var(--gold); }
 
+  .player { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--line); }
+  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .sub { align-self: flex-start; }
+
   footer { border-top: 1px solid var(--line); padding-top: 18px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
 
   @media (max-width: 420px) {
@@ -232,6 +236,20 @@
 
   // Watch: the TV channels plus TikTok from the phone tripod
   const watch = section((L.tv && L.tv.where ? L.tv.where + " + " : "") + (L.phone && L.phone.where ? L.phone.where.toLowerCase() : ""), "Watch", L.tv ? L.tv.blurb : "");
+  // Newest uploads from the first channel that has a player, with a subscribe button
+  const lead = (SITE.channels || []).find((c) => window.SITE_PLAYER && window.SITE_PLAYER(c));
+  if (lead) {
+    const box = el("div", "player");
+    const f = document.createElement("iframe");
+    f.src = window.SITE_PLAYER(lead); f.title = "Latest " + (lead.name || "channel") + " videos"; f.loading = "lazy";
+    f.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    f.allowFullscreen = true; f.referrerPolicy = "strict-origin-when-cross-origin";
+    box.appendChild(f); watch.appendChild(box);
+    if (lead.subscribe) {
+      const a = el("a", "go sub", "Subscribe to " + (lead.name || "the channel") + " ↗"); a.href = lead.subscribe; a.target = "_blank"; a.rel = "noopener";
+      watch.appendChild(a);
+    }
+  }
   const wl = el("ul", "links");
   (SITE.channels || []).forEach((c) => wl.appendChild(linkRow(c.name || c.title, c.blurb, c.url)));
   if (L.phone) wl.appendChild(linkRow(L.phone.title, L.phone.blurb, L.phone.url));

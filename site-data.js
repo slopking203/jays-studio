@@ -27,10 +27,14 @@ window.SITE = {
     signupUrl: ""
   },
 
-  /* What the TV shows. The remote on the coffee table steps through these. */
+  /* What the TV shows. The remote on the coffee table steps through these.
+     playlist is the channel's uploads list: the channel ID with "UC" swapped for "UU".
+     It plays the newest upload first and adds new videos by itself. */
   channels: [
-    { screen: "youtube", name: "Slopking", title: "Slopking on YouTube", cta: "Open YouTube", url: "https://www.youtube.com/@Slopking203", blurb: "New uploads land here first." },
-    { screen: "youtube", name: "Jay vs America", title: "Jay vs America on YouTube", cta: "Open YouTube", url: "https://www.youtube.com/@jayvsamerica", blurb: "My travel channel." }
+    { screen: "youtube", name: "Slopking", title: "Slopking on YouTube", cta: "Open YouTube", url: "https://www.youtube.com/@Slopking203", blurb: "New uploads land here first.",
+      playlist: "UU54mFCaaPLonPLPN5JACVfQ", subscribe: "https://www.youtube.com/@Slopking203?sub_confirmation=1" },
+    { screen: "youtube", name: "Jay vs America", title: "Jay vs America on YouTube", cta: "Open YouTube", url: "https://www.youtube.com/@jayvsamerica", blurb: "My travel channel.",
+      playlist: "UU4ftEyMIEDCNg7ToECjL3tA", subscribe: "https://www.youtube.com/@jayvsamerica?sub_confirmation=1" }
   ],
 
   /* One entry per clickable object in the 3D room (and a section in the 2D site). */
@@ -73,4 +77,9 @@ window.SITE_SUBSCRIBE = function (email) {
       return viaPage();
     });
   }, function () { return viaPage(); });
+};
+
+/* Player address for a channel's uploads (newest first), or "" if it has none. */
+window.SITE_PLAYER = function (ch) {
+  return ch && ch.playlist ? "https://www.youtube-nocookie.com/embed/videoseries?list=" + encodeURIComponent(ch.playlist) + "&rel=0&playsinline=1" : "";
 };
