@@ -23,7 +23,7 @@ window.SITE = {
     pitch: "Ten practical things you can do with AI this week, each one written so you can try it in an evening. Join the list and it's yours free.",
     cta: "Send me the ebook",
     kitFormAction: "https://app.convertkit.com/forms/10224334/subscriptions",
-    done: "You're on the list. Check your inbox to confirm your email, and the ebook comes to you as soon as it's out.",
+    done: "You're on the list! Check your inbox and confirm your email. Your free copy of the ebook arrives a few minutes later.",
     signupUrl: ""
   },
 
