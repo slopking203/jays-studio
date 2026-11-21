@@ -201,7 +201,14 @@
     const note = $("note"), v = $("email").value.trim();
     note.hidden = false;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { note.textContent = "Enter an email address like name@example.com."; $("email").focus(); return; }
-    note.textContent = "Signups open soon. This form isn't connected yet, so nothing was saved.";
+    if (!window.SITE_SUBSCRIBE || !E.kitFormAction) { note.textContent = "Signups open soon. This form isn't connected yet, so nothing was saved."; return; }
+    const btn = $("signupBtn"); btn.disabled = true; note.textContent = "Sending…";
+    window.SITE_SUBSCRIBE(v).then((how) => {
+      note.textContent = how === "fallback" ? "Finish signing up in the tab that just opened." : (E.done || "You're on the list. Check your inbox.");
+      if (how === "ok") $("email").value = "";
+    }, (why) => {
+      note.textContent = why === "invalid" ? "That address didn't go through. Check it and try again." : "Something went wrong. Try again in a minute.";
+    }).finally(() => { btn.disabled = false; });
   });
 
   /* sections, built from the same entries as the 3D room */

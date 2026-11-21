@@ -230,14 +230,20 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     $("fallbackFlatLink").href = FLAT_URL; $("fallbackFlat").hidden = false;
   }
 
-  /* Ebook form: sends people to the email service's signup page once signupUrl is set in site-data.js.
-     Until then it validates the address and says plainly that nothing was saved. */
+  /* Ebook form: sends the address to Jay's Kit form (kitFormAction in site-data.js). */
   $("cardForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const note = $("ebookNote"), v = $("ebookEmail").value.trim();
     note.hidden = false;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { note.textContent = "Enter an email address like name@example.com."; $("ebookEmail").focus(); return; }
-    note.textContent = "Signups open soon. This form isn't connected yet, so nothing was saved.";
+    if (!window.SITE_SUBSCRIBE || !EBOOK.kitFormAction) { note.textContent = "Signups open soon. This form isn't connected yet, so nothing was saved."; return; }
+    const btn = $("ebookBtn"); btn.disabled = true; note.textContent = "Sending…";
+    window.SITE_SUBSCRIBE(v).then((how) => {
+      note.textContent = how === "fallback" ? "Finish signing up in the tab that just opened." : (EBOOK.done || "You're on the list. Check your inbox.");
+      if (how === "ok") $("ebookEmail").value = "";
+    }, (why) => {
+      note.textContent = why === "invalid" ? "That address didn't go through. Check it and try again." : "Something went wrong. Try again in a minute.";
+    }).finally(() => { btn.disabled = false; });
   });
   listBtn.addEventListener("click", () => {
     const open = panel.hidden; panel.hidden = !open; listBtn.setAttribute("aria-expanded", String(open));
