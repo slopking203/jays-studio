@@ -449,6 +449,36 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.fillStyle = "#FFC857"; c.beginPath(); c.arc(w / 2, h / 2 - 16, 74, 0, Math.PI * 2); c.fill();
       c.fillStyle = bg; c.beginPath(); c.moveTo(w / 2 - 24, h / 2 - 54); c.lineTo(w / 2 + 44, h / 2 - 16); c.lineTo(w / 2 - 24, h / 2 + 22); c.closePath(); c.fill();
     }
+    /* Newest upload per channel (from /api/yt-latest), painted on the screen when nothing plays. */
+    const latest = CHANNELS.map(() => null);
+    CHANNELS.forEach((ch, i) => {
+      const id = ch.playlist && /^UU/.test(ch.playlist) ? "UC" + ch.playlist.slice(2) : "";
+      if (!id || !window.fetch) return;
+      fetch("/api/yt-latest?ch=" + encodeURIComponent(id)).then((r) => r.ok ? r.json() : null).then((d) => {
+        if (!d || !d.thumb) return;
+        const img = new Image();
+        img.onload = () => { latest[i] = { img, title: d.title || "" }; if (i === chIndex) drawTV(); };
+        img.src = d.thumb;
+      }).catch(() => {});
+    });
+    function fitText(t, max) {
+      if (c.measureText(t).width <= max) return t;
+      while (t.length > 1 && c.measureText(t + "…").width > max) t = t.slice(0, -1);
+      return t.trimEnd() + "…";
+    }
+    function drawThumb(L) {
+      const iw = L.img.naturalWidth, ih = L.img.naturalHeight, s = Math.max(w / iw, h / ih);
+      c.fillStyle = "#000"; c.fillRect(0, 0, w, h);
+      c.drawImage(L.img, (w - iw * s) / 2, (h - ih * s) / 2, iw * s, ih * s);
+      const grd = c.createLinearGradient(0, h - 110, 0, h); grd.addColorStop(0, "rgba(0,0,0,0)"); grd.addColorStop(1, "rgba(0,0,0,0.85)");
+      c.fillStyle = grd; c.fillRect(0, h - 110, w, 110);
+      c.fillStyle = "rgba(255,200,87,0.92)"; c.beginPath(); c.arc(w / 2, h / 2, 40, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#1b1c1a"; c.beginPath(); c.moveTo(w / 2 - 12, h / 2 - 20); c.lineTo(w / 2 + 22, h / 2); c.lineTo(w / 2 - 12, h / 2 + 20); c.closePath(); c.fill();
+      if (L.title) {
+        c.fillStyle = "#f3efe4"; c.font = "bold 26px Arial, sans-serif"; c.textAlign = "left";
+        c.fillText(fitText(L.title, w - 48), 24, h - 26);
+      }
+    }
     function drawTV() {
       const ch = CHANNELS[chIndex];
       if (ch.screen === "static") {
@@ -464,6 +494,8 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
         playDisc("#1b1c1a");
         c.fillStyle = "#508B3F"; c.fillRect(0, h - 92, w, 6);
         c.fillStyle = "#f3efe4"; c.font = "bold 34px Arial Black, Arial, sans-serif"; c.textAlign = "center"; c.fillText("FOLLOW ON FACEBOOK", w / 2, h - 40);
+      } else if (latest[chIndex]) {
+        drawThumb(latest[chIndex]);
       } else {
         const grd = c.createLinearGradient(0, 0, w, h); grd.addColorStop(0, "#3d6f30"); grd.addColorStop(1, "#23401c");
         c.fillStyle = grd; c.fillRect(0, 0, w, h);
