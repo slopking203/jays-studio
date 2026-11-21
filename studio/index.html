@@ -87,6 +87,10 @@
   .card .where { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
   .card h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 1.15; text-wrap: balance; padding-right: 36px; }
   .card p.blurb { margin: 0 0 14px; color: var(--muted); max-width: 46ch; }
+  .card .gamelist { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .card .gamelist[hidden] { display: none; }
+  .card .gamelist a { display: block; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,200,87,0.45); color: var(--gold); text-decoration: none; font-weight: 600; font-size: 14px; }
+  .card .gamelist a:hover, .card .gamelist a:focus-visible { background: rgba(255,200,87,0.14); }
   .go {
     display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
     font: 600 15px/1 var(--font-body); color: var(--ink); background: var(--gold);
@@ -171,6 +175,7 @@
   <p class="where" id="cardWhere"></p>
   <h2 id="cardTitle"></h2>
   <p class="blurb" id="cardBlurb"></p>
+  <ul class="gamelist" id="cardGames" hidden></ul>
   <a class="go" id="cardLink" href="#" target="_blank" rel="noopener">Open</a>
   <form class="signup" id="cardForm" novalidate hidden>
     <label for="ebookEmail">Your email</label>
@@ -258,6 +263,13 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     const L = LINKS[key]; if (!L) return;
     $("cardWhere").textContent = L.where; $("cardTitle").textContent = L.title; $("cardBlurb").textContent = L.blurb;
     const a = $("cardLink"); a.hidden = !L.url; a.href = L.url || "#"; a.textContent = L.cta + " ↗";
+    const gl = $("cardGames"); gl.textContent = "";                       // the arcade lists each game
+    (L.items || []).forEach((g) => {
+      if (!g || !g.url) return;
+      const li = document.createElement("li"), ga = document.createElement("a");
+      ga.href = g.url; ga.target = "_blank"; ga.rel = "noopener"; ga.textContent = g.name; li.appendChild(ga); gl.appendChild(li);
+    });
+    gl.hidden = !gl.children.length;
     const f = $("cardForm"); f.hidden = !(L.signup && !L.url);
     if (!f.hidden) { $("ebookBtn").textContent = L.cta; $("ebookNote").hidden = true; }
     cardKey = key; card.hidden = false; $("hint").hidden = true; panel.hidden = true; listBtn.setAttribute("aria-expanded", "false");

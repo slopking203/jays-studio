@@ -1,0 +1,789 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Mazeworm · Jay's Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+/* Layout: one centered column. The maze is the hero, a slim HUD sits above it, the rules sit below it. Single dark look by choice (an arcade cabinet screen). */
+:root {
+  --ink: #080a1c;
+  --panel: #10132e;
+  --line: #232957;
+  --text: #e8eaff;
+  --muted: #8c92c4;
+  --wall: #4a5dff;
+  --wall-fill: #0b1040;
+  --den: #0e1236;
+  --door: #ff8fab;
+  --pellet: #f4ecd6;
+  --snake: #46e8a4;
+  --snake-deep: #14956a;
+  --on-snake: #04180f;
+  --power: #ffd34e;
+  --danger: #ff6b86;
+  --fright: #bcd0ff;
+  --fright-flash: #ff9db1;
+  --g0: #a78bff;
+  --g1: #ff6f91;
+  --g2: #4cc9f0;
+  --g3: #f6b042;
+  --display: "Titan One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--mono);
+  padding-inline: 16px;
+  padding-block: 18px 32px;
+  -webkit-tap-highlight-color: transparent;
+}
+.shell { max-width: 620px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+.top { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; }
+h1 { margin: 0; font: 400 clamp(28px, 6vw, 36px) / 1 var(--display); color: var(--snake); letter-spacing: 0.01em; }
+.hud { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lbl { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.val { height: 22px; display: flex; align-items: center; font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pip { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; border: 2px solid var(--line); box-sizing: border-box; }
+.pip.on { background: var(--snake); border-color: var(--snake); }
+
+.stage {
+  position: relative;
+  margin-inline: auto;
+  width: max(300px, min(100%, 560px));
+  width: max(300px, min(100%, 560px, calc((100vh - 250px) * 0.9048)));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
+}
+canvas { display: block; width: 100%; height: auto; max-width: 100%; touch-action: none; }
+.powerbar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: transparent; }
+.powerbar i { display: block; height: 100%; width: 100%; background: var(--power); transform-origin: left center; transform: scaleX(0); }
+
+.veil { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 18px; pointer-events: none; }
+.veil .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; text-align: center; max-width: 100%; }
+.veil h2 { margin: 0; font: 400 30px / 1.1 var(--display); color: var(--text); text-wrap: balance; }
+.veil p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.veil button { margin-top: 14px; }
+.veil.paused, .veil.gameover, .veil.tally { align-items: center; background: color-mix(in srgb, var(--ink) 74%, transparent); pointer-events: auto; }
+.veil.paused .card, .veil.gameover .card, .veil.tally .card { padding: 22px 28px; }
+.tally { display: none; margin: 14px 0 0; grid-template-columns: 1fr auto; gap: 6px 22px; text-align: left; font-size: 13px; font-variant-numeric: tabular-nums; }
+.veil.tally .tally { display: grid; }
+.tally dt { color: var(--muted); }
+.tally dd { margin: 0; text-align: right; color: var(--text); }
+.tally .sum { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 2px; color: var(--snake); font-weight: 500; }
+.veil p:empty { display: none; }
+.veil.ready h2, .veil.levelclear h2 { display: none; }
+.veil.ready button, .veil.levelclear button { display: none; }
+.veil.ready p, .veil.levelclear p { margin: 0; color: var(--text); font-size: 13px; }
+
+button {
+  font: 500 14px var(--mono);
+  background: var(--snake);
+  color: var(--on-snake);
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 18px;
+  cursor: pointer;
+}
+button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.dpad { display: none; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 56px); gap: 6px; justify-content: center; }
+.dpad button { padding: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); display: grid; place-items: center; touch-action: manipulation; }
+.dpad button:active { background: var(--line); }
+.dpad svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.dpad .u { grid-column: 2; grid-row: 1; }
+.dpad .l { grid-column: 1; grid-row: 2; }
+.dpad .r { grid-column: 3; grid-row: 2; }
+.dpad .d { grid-column: 2; grid-row: 3; }
+@media (hover: none) and (pointer: coarse) { .dpad { display: grid; } .hint-keys { display: none; } }
+
+.hint { margin: 0; text-align: center; font-size: 12px; color: var(--muted); }
+.rules { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
+.rules li { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+.mk { flex: none; width: 14px; height: 14px; margin-top: 3px; }
+.mk.pellet { border-radius: 50%; background: var(--pellet); transform: scale(0.6); }
+.mk.power { border-radius: 50%; background: var(--power); }
+.mk.bite { background: var(--g1); transform: rotate(45deg) scale(0.8); border-radius: 3px; }
+.mk.head { border-radius: 50%; background: var(--snake); border: 3px solid var(--snake-deep); box-sizing: border-box; }
+.rules b { display: block; font-weight: 500; font-size: 13px; color: var(--text); }
+.rules span { display: block; font-size: 13px; line-height: 1.45; color: var(--muted); max-width: 34ch; }
+.mute { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 6px 12px; font-size: 12px; border-radius: 999px; }
+.mute:hover { color: var(--text); }
+.mute[aria-pressed="true"] { color: var(--danger); border-color: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .powerbar i { transition: none; } }
+</style>
+
+<main class="shell">
+  <header class="top">
+    <h1>Mazeworm</h1>
+    <div class="hud" aria-label="Game status">
+      <div class="stat"><span class="lbl">Score</span><span class="val" id="score">0</span></div>
+      <div class="stat"><span class="lbl">Best</span><span class="val" id="best">0</span></div>
+      <div class="stat"><span class="lbl">Length</span><span class="val" id="len">3</span></div>
+      <div class="stat"><span class="lbl">Level</span><span class="val" id="lvl">1</span></div>
+      <div class="stat"><span class="lbl">Lives</span><span class="val" id="lives"></span></div>
+    </div>
+    <button class="mute" id="mute" type="button" aria-pressed="false">Sound on</button>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="game" role="img" aria-label="Maze with a snake, pellets and four ghosts"></canvas>
+    <div class="powerbar" aria-hidden="true"><i id="powerfill"></i></div>
+    <div class="veil ready" id="veil" aria-live="polite">
+      <div class="card">
+        <h2 id="vt"></h2>
+        <p id="vs">Press an arrow key or swipe to start</p>
+        <dl class="tally" id="tally"></dl>
+        <button id="vb" type="button">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dpad" id="dpad">
+    <button class="u" type="button" data-d="0" aria-label="Up"><svg viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg></button>
+    <button class="l" type="button" data-d="3" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="r" type="button" data-d="1" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    <button class="d" type="button" data-d="2" aria-label="Down"><svg viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></svg></button>
+  </div>
+  <p class="hint"><span class="hint-keys">Arrow keys or WASD to steer. P pauses. M mutes. </span>Pellet 100, power pellet 500, ghost 500. Clear the map for 300 per segment kept.</p>
+
+  <ul class="rules">
+    <li><i class="mk pellet"></i><div><b>Pellet</b><span>The snake grows by one segment.</span></div></li>
+    <li><i class="mk bite"></i><div><b>Ghost touches the body</b><span>That segment and everything behind it is lost.</span></div></li>
+    <li><i class="mk head"></i><div><b>Ghost touches the head</b><span>You lose a life. Your length stays.</span></div></li>
+    <li><i class="mk power"></i><div><b>Power pellet</b><span>Ghosts turn pale and edible. Each one you eat adds a segment.</span></div></li>
+  </ul>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* Fonts load after the game is up so a slow font request never holds the first paint. */
+  var fl = document.createElement('link');
+  fl.rel = 'stylesheet';
+  fl.href = 'https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Titan+One&display=swap';
+  document.head.appendChild(fl);
+
+  var W = 19, H = 21;
+  var MAP = [
+    '###################',
+    '#o.......#.......o#',
+    '#.##.###.#.###.##.#',
+    '#.................#',
+    '#.##.#.#####.#.##.#',
+    '#....#...#...#....#',
+    '####.###,#,###.####',
+    '####.#,,,,,,,#.####',
+    '####.#,##-##,#.####',
+    ',,,,.,,#GGG#,,.,,,,',
+    '####.#,#####,#.####',
+    '####.#,,,,,,,#.####',
+    '####.#,#####,#.####',
+    '#........#........#',
+    '#.##.###.#.###.##.#',
+    '#o.#.....S.....#.o#',
+    '##.#.#.#.#.#.#.#.##',
+    '#....#...#...#....#',
+    '#.######.#.######.#',
+    '#.................#',
+    '###################'
+  ];
+  var DIRS = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+  var SPEED = 0.95; /* global movement speed multiplier */
+  var START_LEN = 3, MAX_LIVES = 3, SNAKE_MS = 130 / SPEED, GHOST_MS = 170 / SPEED, POWER_MS = 7000, BITE_MS = 900;
+  var CORNERS = [{ x: 17, y: 1 }, { x: 1, y: 1 }, { x: 17, y: 19 }, { x: 1, y: 19 }];
+
+  var cs = getComputedStyle(document.documentElement);
+  function tok(n) { return cs.getPropertyValue(n).trim() || '#888888'; }
+  var C = {
+    ink: tok('--ink'), wall: tok('--wall'), wallFill: tok('--wall-fill'), den: tok('--den'), door: tok('--door'),
+    pellet: tok('--pellet'), snake: tok('--snake'), deep: tok('--snake-deep'), power: tok('--power'),
+    danger: tok('--danger'), fright: tok('--fright'), flash: tok('--fright-flash'),
+    g: [tok('--g0'), tok('--g1'), tok('--g2'), tok('--g3')]
+  };
+
+  /* ---------- grid ---------- */
+  var grid = [], pel = [], startX = 9, startY = 15, total = 0, remaining = 0;
+  MAP.forEach(function (row, y) {
+    grid[y] = [];
+    for (var x = 0; x < W; x++) {
+      var ch = row.charAt(x), v = 1;
+      if (ch === '#') v = 0; else if (ch === '-') v = 2; else if (ch === 'G') v = 3;
+      if (ch === 'S') { startX = x; startY = y; }
+      if (ch === '.' || ch === 'o') total++;
+      grid[y][x] = v;
+    }
+  });
+  function wx(x) { return (x + W) % W; }
+  function cell(x, y) { return (y < 0 || y >= H) ? 0 : grid[y][wx(x)]; }
+  function resetPellets() {
+    pel = MAP.map(function (row) {
+      var r = [];
+      for (var x = 0; x < W; x++) { var ch = row.charAt(x); r.push(ch === '.' ? 1 : ch === 'o' ? 2 : 0); }
+      return r;
+    });
+    remaining = total;
+  }
+
+  /* ---------- dom ---------- */
+  function $(id) { return document.getElementById(id); }
+  var canvas = $('game'), ctx = canvas.getContext('2d');
+  var elScore = $('score'), elBest = $('best'), elLen = $('len'), elLvl = $('lvl'), elLives = $('lives');
+  var tallyEl = $('tally'), veil = $('veil'), vt = $('vt'), vs = $('vs'), vb = $('vb'), powerFill = $('powerfill');
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var T = Math.round(32 * DPR);
+  canvas.width = W * T; canvas.height = H * T;
+  var mz = null;
+
+  /* ---------- state ---------- */
+  var state = 'ready';
+  var score = 0, best = 0, lives = MAX_LIVES, level = 1, maxLen = START_LEN;
+  var segs = [], prevSegs = [], dir = null, want = null, facing = { x: -1, y: 0 }, snakeAcc = 0, snakeT = 0;
+  var ghosts = [], powerTimer = 0, powerId = 0, scatter = true, phaseLeft = 5000, stateTimer = 0;
+  var particles = [], floaters = [];
+  var cntPel = 0, cntPow = 0, cntGhost = 0;
+  try { best = parseInt(localStorage.getItem('mazeworm-best'), 10) || 0; } catch (e) { best = 0; }
+
+  function saveBest() { try { localStorage.setItem('mazeworm-best', String(best)); } catch (e) { /* storage unavailable */ } }
+
+  /* ---------- sound (synthesized in the browser, no audio files) ---------- */
+  var AC = window.AudioContext || window.webkitAudioContext, actx = null, master = null, muted = false, flip = false, fearTick = 0;
+  try { muted = localStorage.getItem('mazeworm-muted') === '1'; } catch (e) { muted = false; }
+  var muteBtn = $('mute');
+  function showMute() { muteBtn.textContent = muted ? 'Sound off' : 'Sound on'; muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false'); }
+  function ensureAudio() {
+    if (!AC) return;
+    try {
+      if (!actx) { actx = new AC(); master = actx.createGain(); master.gain.value = 0.3; master.connect(actx.destination); }
+      if (actx.state === 'suspended') actx.resume();
+    } catch (e) { actx = null; }
+  }
+  function toggleMute() {
+    muted = !muted; showMute();
+    try { localStorage.setItem('mazeworm-muted', muted ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+    if (!muted) { ensureAudio(); tone(660, 880, 0.08, 'square', 0.08); }
+  }
+  function tone(f0, f1, dur, type, vol, delay) {
+    if (muted || !actx) return;
+    var t = actx.currentTime + (delay || 0), o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol, freq) {
+    if (muted || !actx) return;
+    var n = Math.floor(actx.sampleRate * dur), buf = actx.createBuffer(1, n, actx.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+    src.buffer = buf; f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(master); src.start();
+  }
+  var sfx = {
+    start: function () { tone(392, 392, 0.07, 'square', 0.08); tone(587, 587, 0.09, 'square', 0.08, 0.08); },
+    pellet: function () { flip = !flip; tone(flip ? 523 : 659, flip ? 523 : 659, 0.06, 'square', 0.08); },
+    power: function () { tone(180, 900, 0.35, 'sawtooth', 0.09); tone(360, 1800, 0.35, 'square', 0.04); },
+    ghost: function () { tone(300, 1100, 0.1, 'square', 0.1); tone(500, 1500, 0.12, 'square', 0.09, 0.09); },
+    bite: function () { noise(0.2, 0.5, 1800); tone(170, 55, 0.2, 'sawtooth', 0.12); },
+    death: function () { tone(620, 70, 1.0, 'sawtooth', 0.12); tone(310, 35, 1.0, 'square', 0.06); },
+    clear: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, f, 0.14, 'square', 0.09, i * 0.11); }); },
+    over: function () { [392, 330, 262, 196].forEach(function (f, i) { tone(f, f * 0.96, 0.22, 'triangle', 0.14, i * 0.2); }); },
+    fear: function () { flip = !flip; tone(flip ? 110 : 147, flip ? 110 : 147, 0.1, 'triangle', 0.07); }
+  };
+
+  function updateHud() {
+    if (score > best) best = score;
+    if (segs.length > maxLen) maxLen = segs.length;
+    elScore.textContent = score; elBest.textContent = best; elLen.textContent = segs.length; elLvl.textContent = level;
+    var s = '';
+    for (var i = 0; i < MAX_LIVES; i++) s += '<i class="pip' + (i < lives ? ' on' : '') + '"></i>';
+    elLives.innerHTML = s;
+  }
+
+  function setVeil(kind, title, sub, tallyHtml) {
+    tallyEl.innerHTML = tallyHtml || '';
+    if (!kind) { veil.hidden = true; return; }
+    veil.hidden = false;
+    veil.className = 'veil ' + kind;
+    vt.textContent = title || '';
+    vs.textContent = sub || '';
+  }
+
+  /* ---------- snake ---------- */
+  function resetSnake(len) {
+    segs = []; prevSegs = [];
+    for (var i = 0; i < len; i++) { segs.push({ x: startX, y: startY }); prevSegs.push({ x: startX, y: startY }); }
+    dir = null; want = null; facing = { x: -1, y: 0 }; snakeAcc = 0; snakeT = 0;
+  }
+  function grow(n) {
+    for (var i = 0; i < n; i++) {
+      var t = segs[segs.length - 1];
+      segs.push({ x: t.x, y: t.y }); prevSegs.push({ x: t.x, y: t.y });
+    }
+  }
+  function stepSnake() {
+    prevSegs = segs.map(function (s) { return { x: s.x, y: s.y }; });
+    var head = segs[0], neck = segs.length > 1 ? segs[1] : null;
+    function tryMove(d) {
+      if (!d) return null;
+      var nx = wx(head.x + d.x), ny = head.y + d.y;
+      if (cell(nx, ny) !== 1) return null;
+      if (neck && !(neck.x === head.x && neck.y === head.y) && neck.x === nx && neck.y === ny) return null;
+      return { x: nx, y: ny };
+    }
+    var target = tryMove(want);
+    if (target) { dir = want; if (want === dir) want = null; } else target = tryMove(dir);
+    if (!target) return;
+    facing = dir;
+    segs.unshift(target); segs.pop();
+    eatAt(target.x, target.y);
+    checkCollisions();
+  }
+  function eatAt(x, y) {
+    var p = pel[y][x];
+    if (!p) return;
+    pel[y][x] = 0; remaining--;
+    if (p === 1) { score += 100; cntPel++; grow(1); burst(x, y, C.pellet, 3); sfx.pellet(); }
+    else { score += 500; cntPow++; grow(1); startPower(); burst(x, y, C.power, 12); sfx.power(); }
+    if (remaining === 0) { clearMap(); return; }
+    updateHud();
+  }
+  function clearMap() {
+    var bonus = segs.length * 300;
+    score += bonus;
+    state = 'levelclear';
+    updateHud();
+    function row(l, v) { return '<dt>' + l + '</dt><dd>' + v + '</dd>'; }
+    var html = row('Pellets', cntPel + ' \u00d7 100 = ' + (cntPel * 100)) +
+      row('Power pellets', cntPow + ' \u00d7 500 = ' + (cntPow * 500)) +
+      row('Ghosts eaten', cntGhost + ' \u00d7 500 = ' + (cntGhost * 500)) +
+      row('Segments kept', segs.length + ' \u00d7 300 = ' + bonus) +
+      '<dt class="sum">Score</dt><dd class="sum">' + score + '</dd>';
+    sfx.clear();
+    vb.textContent = 'Next level';
+    setVeil('tally', 'Map cleared', '', html);
+  }
+  function startPower() {
+    powerTimer = Math.max(3500, POWER_MS - (level - 1) * 600);
+    powerId++;
+    ghosts.forEach(function (g) {
+      if (g.mode !== 'eyes') g.frightId = powerId;
+      if (g.mode === 'active') g.dir = { x: -g.dir.x, y: -g.dir.y };
+    });
+  }
+
+  /* ---------- ghosts ---------- */
+  function makeGhosts() {
+    var starts = [{ x: 9, y: 7, m: 'active' }, { x: 8, y: 9, m: 'house' }, { x: 10, y: 9, m: 'house' }, { x: 9, y: 9, m: 'house' }];
+    var rel = [0, 2600, 5200, 7800];
+    ghosts = starts.map(function (s, i) {
+      return {
+        id: i, x: s.x, y: s.y, px: s.x, py: s.y, dir: { x: i % 2 ? 1 : -1, y: 0 }, mode: s.m,
+        release: Math.max(0, rel[i] - (level - 1) * 350), acc: 0, cd: 0, frightId: -1
+      };
+    });
+    scatter = true; phaseLeft = 5000;
+  }
+  function ghostMs() { return Math.max(105 / SPEED, GHOST_MS - (level - 1) * 10 / SPEED); }
+  function isFright(g) { return powerTimer > 0 && g.frightId === powerId && g.mode !== 'eyes'; }
+  function ghostInterval(g) {
+    if (g.mode === 'eyes') return 62 / SPEED;
+    if (g.mode === 'leaving') return ghostMs() * 1.25;
+    if (isFright(g)) return ghostMs() * 1.5;
+    return ghostMs();
+  }
+  function targetFor(g) {
+    if (scatter) return CORNERS[g.id];
+    var h = segs[0];
+    if (g.id === 1) return { x: h.x + (dir ? dir.x * 4 : 0), y: h.y + (dir ? dir.y * 4 : 0) };
+    if (g.id === 3) return segs[segs.length - 1];
+    return h;
+  }
+  function chooseDir(g) {
+    var opts = [];
+    DIRS.forEach(function (d) {
+      if (d.x === -g.dir.x && d.y === -g.dir.y) return;
+      if (cell(wx(g.x + d.x), g.y + d.y) === 1) opts.push(d);
+    });
+    if (!opts.length) {
+      var r = { x: -g.dir.x, y: -g.dir.y };
+      return cell(wx(g.x + r.x), g.y + r.y) === 1 ? r : null;
+    }
+    if (opts.length === 1) return opts[0];
+    if (isFright(g) || (g.id === 2 && Math.random() < 0.55)) return opts[(Math.random() * opts.length) | 0];
+    var t = targetFor(g), best = null, bd = 1e9;
+    opts.forEach(function (d) {
+      var nx = g.x + d.x, ny = g.y + d.y;
+      var dd = (nx - t.x) * (nx - t.x) + (ny - t.y) * (ny - t.y) + Math.random() * 0.5;
+      if (dd < bd) { bd = dd; best = d; }
+    });
+    return best;
+  }
+  function bfsNext(sx, sy, tx, ty) {
+    if (sx === tx && sy === ty) return null;
+    function key(x, y) { return y * W + x; }
+    var par = {}, q = [[sx, sy]], start = key(sx, sy);
+    par[start] = -1;
+    while (q.length) {
+      var c = q.shift();
+      if (c[0] === tx && c[1] === ty) break;
+      for (var i = 0; i < 4; i++) {
+        var nx = wx(c[0] + DIRS[i].x), ny = c[1] + DIRS[i].y;
+        if (ny < 0 || ny >= H || !cell(nx, ny)) continue;
+        var k = key(nx, ny);
+        if (par[k] !== undefined) continue;
+        par[k] = key(c[0], c[1]); q.push([nx, ny]);
+      }
+    }
+    var cur = key(tx, ty);
+    if (par[cur] === undefined) return null;
+    while (par[cur] !== start) { cur = par[cur]; if (cur === undefined || cur === -1) return null; }
+    return { x: cur % W, y: Math.floor(cur / W) };
+  }
+  function stepGhost(g) {
+    g.px = g.x; g.py = g.y;
+    if (g.mode === 'house') return;
+    if (g.mode === 'leaving') {
+      if (g.y === 9 && g.x !== 9) { g.dir = { x: g.x < 9 ? 1 : -1, y: 0 }; g.x += g.dir.x; }
+      else { g.dir = { x: 0, y: -1 }; g.y -= 1; }
+      if (g.y === 7) { g.mode = 'active'; g.dir = Math.random() < 0.5 ? DIRS[3] : DIRS[1]; }
+      return;
+    }
+    if (g.mode === 'eyes') {
+      var n = bfsNext(g.x, g.y, 9, 9);
+      if (n) {
+        var dx = n.x - g.x;
+        if (Math.abs(dx) > 1) dx = -(dx > 0 ? 1 : -1); else dx = dx > 0 ? 1 : dx < 0 ? -1 : 0;
+        g.dir = { x: dx, y: n.y - g.y }; g.x = n.x; g.y = n.y;
+      }
+      if (g.x === 9 && g.y === 9) { g.mode = 'house'; g.release = 1400; g.frightId = -1; }
+      return;
+    }
+    var d = chooseDir(g);
+    if (!d) return;
+    g.dir = d; g.x = wx(g.x + d.x); g.y = g.y + d.y;
+    checkCollisions();
+  }
+
+  /* ---------- collisions ---------- */
+  function checkCollisions() {
+    if (state !== 'playing') return;
+    var head = segs[0];
+    for (var gi = 0; gi < ghosts.length; gi++) {
+      var g = ghosts[gi];
+      if (g.mode !== 'active') continue;
+      if (isFright(g)) {
+        if (head.x === g.x && head.y === g.y) eatGhost(g);
+        continue;
+      }
+      var idx = -1;
+      for (var i = 0; i < segs.length; i++) { if (segs[i].x === g.x && segs[i].y === g.y) { idx = i; break; } }
+      if (idx === -1) continue;
+      if (idx === 0) { loseLife(); return; }
+      if (g.cd <= 0) biteSegment(idx, g);
+    }
+  }
+  function biteSegment(idx, g) {
+    var s = segs[idx], lost = segs.length - idx;
+    for (var i = idx; i < segs.length; i += Math.max(1, Math.floor(lost / 6))) burst(segs[i].x, segs[i].y, C.danger, 4);
+    segs.splice(idx); prevSegs.splice(idx); sfx.bite();
+    g.cd = BITE_MS;
+    updateHud();
+  }
+  function eatGhost(g) {
+    g.mode = 'eyes'; g.frightId = -1;
+    score += 500; cntGhost++; grow(1);
+    burst(g.x, g.y, C.fright, 14); floatText(g.x, g.y, '+1', C.snake); sfx.ghost();
+    updateHud();
+  }
+  function loseLife() {
+    lives--;
+    var h = segs[0];
+    burst(h.x, h.y, C.snake, 22);
+    state = 'dying'; stateTimer = 1100; sfx.death();
+    setVeil(null);
+    updateHud();
+  }
+
+  /* ---------- game flow ---------- */
+  function respawn() {
+    resetSnake(segs.length); makeGhosts(); powerTimer = 0;
+    state = 'ready'; setVeil('ready', '', 'Press an arrow key or swipe to continue');
+    updateHud();
+  }
+  function nextLevel() {
+    level++; cntPel = cntPow = cntGhost = 0; resetPellets(); resetSnake(segs.length); makeGhosts(); powerTimer = 0;
+    saveBest();
+    state = 'ready'; setVeil('ready', '', 'Level ' + level + '. Steer to start');
+    updateHud();
+  }
+  function gameOver() {
+    state = 'gameover'; try{window.JS_ROUND_OVER&&window.JS_ROUND_OVER()}catch(_){} saveBest(); vb.textContent = 'Play again'; sfx.over();
+    setVeil('gameover', 'Game over', 'Score ' + score + '. Longest snake ' + maxLen + '.');
+  }
+  function newGame() {
+    score = 0; lives = MAX_LIVES; level = 1; maxLen = START_LEN; cntPel = cntPow = cntGhost = 0;
+    resetPellets(); resetSnake(START_LEN); makeGhosts();
+    powerTimer = 0; particles = []; floaters = [];
+    state = 'ready'; setVeil('ready', '', 'Press an arrow key or swipe to start');
+    updateHud();
+  }
+  function togglePause() {
+    if (state === 'playing') { state = 'paused'; setVeil('paused', 'Paused', 'Press P or tap Resume'); vb.textContent = 'Resume'; }
+    else if (state === 'paused') { state = 'playing'; setVeil(null); }
+  }
+  function input(d) {
+    ensureAudio();
+    if (state === 'ready') { state = 'playing'; setVeil(null); snakeAcc = SNAKE_MS; want = d; sfx.start(); return; }
+    if (state === 'playing') want = d;
+  }
+
+  /* ---------- update ---------- */
+  function update(dt) {
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i]; p.life -= dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.x += p.vx * dt / 1000; p.y += p.vy * dt / 1000; p.vx *= 0.96; p.vy *= 0.96;
+    }
+    for (var j = floaters.length - 1; j >= 0; j--) { floaters[j].life -= dt; if (floaters[j].life <= 0) floaters.splice(j, 1); }
+
+    if (state === 'playing') {
+      snakeAcc += dt;
+      while (snakeAcc >= SNAKE_MS && state === 'playing') { snakeAcc -= SNAKE_MS; stepSnake(); }
+      if (state === 'playing') snakeT = Math.min(1, snakeAcc / SNAKE_MS);
+      if (powerTimer > 0) {
+        powerTimer = Math.max(0, powerTimer - dt);
+        fearTick -= dt;
+        if (fearTick <= 0) { fearTick = 230; sfx.fear(); }
+      }
+      phaseLeft -= dt;
+      if (phaseLeft <= 0) { scatter = !scatter; phaseLeft = scatter ? 5000 : 17000; }
+      for (var k = 0; k < ghosts.length && state === 'playing'; k++) {
+        var g = ghosts[k];
+        if (g.cd > 0) g.cd = Math.max(0, g.cd - dt);
+        if (g.mode === 'house') { g.release -= dt; if (g.release <= 0) g.mode = 'leaving'; }
+        g.acc += dt;
+        var iv = ghostInterval(g);
+        while (g.acc >= iv && state === 'playing') { g.acc -= iv; stepGhost(g); iv = ghostInterval(g); }
+      }
+    } else if (state === 'dying') {
+      stateTimer -= dt;
+      if (stateTimer <= 0) { if (lives <= 0) gameOver(); else respawn(); }
+    }
+    powerFill.style.transform = 'scaleX(' + (powerTimer / Math.max(3500, POWER_MS - (level - 1) * 600)) + ')';
+  }
+
+  /* ---------- effects ---------- */
+  function burst(x, y, color, n) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * 6.283, s = 1.2 + Math.random() * 2.6;
+      particles.push({ x: x + 0.5, y: y + 0.5, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 520 + Math.random() * 260, max: 780, color: color, r: 0.05 + Math.random() * 0.06 });
+    }
+  }
+  function floatText(x, y, text, color) { floaters.push({ x: x + 0.5, y: y + 0.3, text: text, color: color, life: 900, max: 900 }); }
+
+  /* ---------- drawing ---------- */
+  function buildMaze() {
+    mz = document.createElement('canvas');
+    mz.width = W * T; mz.height = H * T;
+    var m = mz.getContext('2d');
+    m.fillStyle = C.ink; m.fillRect(0, 0, mz.width, mz.height);
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        if (grid[y][x] === 0) { m.fillStyle = C.wallFill; m.fillRect(x * T, y * T, T, T); }
+        else if (grid[y][x] === 3) { m.fillStyle = C.den; m.fillRect(x * T, y * T, T, T); }
+      }
+    }
+    m.strokeStyle = C.wall; m.lineWidth = Math.max(2, T * 0.085); m.lineCap = 'round';
+    m.shadowColor = C.wall; m.shadowBlur = T * 0.3;
+    m.beginPath();
+    for (var yy = 0; yy < H; yy++) {
+      for (var xx = 0; xx < W; xx++) {
+        if (grid[yy][xx] !== 0) continue;
+        if (yy > 0 && grid[yy - 1][xx] !== 0) { m.moveTo(xx * T, yy * T); m.lineTo((xx + 1) * T, yy * T); }
+        if (yy < H - 1 && grid[yy + 1][xx] !== 0) { m.moveTo(xx * T, (yy + 1) * T); m.lineTo((xx + 1) * T, (yy + 1) * T); }
+        if (xx > 0 && grid[yy][xx - 1] !== 0) { m.moveTo(xx * T, yy * T); m.lineTo(xx * T, (yy + 1) * T); }
+        if (xx < W - 1 && grid[yy][xx + 1] !== 0) { m.moveTo((xx + 1) * T, yy * T); m.lineTo((xx + 1) * T, (yy + 1) * T); }
+      }
+    }
+    m.stroke();
+    m.shadowBlur = 0; m.strokeStyle = C.door; m.lineWidth = T * 0.12;
+    for (var dy = 0; dy < H; dy++) for (var dx = 0; dx < W; dx++) {
+      if (grid[dy][dx] === 2) { m.beginPath(); m.moveTo(dx * T + T * 0.08, dy * T + T / 2); m.lineTo((dx + 1) * T - T * 0.08, dy * T + T / 2); m.stroke(); }
+    }
+  }
+  function circle(x, y, r, fill) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = fill; ctx.fill(); }
+
+  function drawPellets(now) {
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var p = pel[y][x];
+        if (p === 1) circle((x + 0.5) * T, (y + 0.5) * T, T * 0.09, C.pellet);
+        else if (p === 2) {
+          var pulse = 0.26 + 0.05 * Math.sin(now / 170);
+          ctx.globalAlpha = 0.25; circle((x + 0.5) * T, (y + 0.5) * T, T * (pulse + 0.1), C.power);
+          ctx.globalAlpha = 1; circle((x + 0.5) * T, (y + 0.5) * T, T * pulse, C.power);
+        }
+      }
+    }
+  }
+  function lerpPos(a, b, t) {
+    if (Math.abs(a.x - b.x) > 1.5 || Math.abs(a.y - b.y) > 1.5) return { x: b.x, y: b.y };
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+  function drawSnake(now) {
+    var n = segs.length, pts = [];
+    for (var i = 0; i < n; i++) {
+      var q = lerpPos(prevSegs[i] || segs[i], segs[i], snakeT);
+      pts.push({ x: (q.x + 0.5) * T, y: (q.y + 0.5) * T });
+    }
+    var powered = powerTimer > 0;
+    if (state === 'dying') ctx.globalAlpha = (Math.floor(now / 110) % 2) ? 0.25 : 1;
+    var passes = [{ w: 0.74, c: powered ? C.power : C.deep }, { w: 0.56, c: C.snake }];
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (var pi = 0; pi < passes.length; pi++) {
+      ctx.lineWidth = passes[pi].w * T; ctx.strokeStyle = passes[pi].c;
+      ctx.beginPath();
+      for (var k = 0; k < n; k++) {
+        var p = pts[k];
+        var brk = k === 0 || Math.hypot(p.x - pts[k - 1].x, p.y - pts[k - 1].y) > 1.6 * T;
+        if (brk) { ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 0.01, p.y); } else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = state === 'dying' ? ctx.globalAlpha : 1;
+    for (var s = 1; s < n; s += 1) circle(pts[s].x, pts[s].y, T * 0.1, 'rgba(255,255,255,0.2)');
+    var h = pts[0], f = facing || { x: -1, y: 0 }, perp = { x: -f.y, y: f.x };
+    if (powered) {
+      ctx.globalAlpha = 0.35 + 0.25 * Math.sin(now / 120);
+      ctx.beginPath(); ctx.arc(h.x, h.y, T * 0.52, 0, 6.2832); ctx.strokeStyle = C.power; ctx.lineWidth = T * 0.07; ctx.stroke();
+      ctx.globalAlpha = state === 'dying' ? ctx.globalAlpha : 1;
+    }
+    circle(h.x, h.y, T * 0.4, C.snake);
+    if (Math.floor(now / 280) % 3 === 0) {
+      ctx.strokeStyle = C.danger; ctx.lineWidth = T * 0.05;
+      ctx.beginPath();
+      ctx.moveTo(h.x + f.x * T * 0.38, h.y + f.y * T * 0.38);
+      ctx.lineTo(h.x + f.x * T * 0.6, h.y + f.y * T * 0.6);
+      ctx.lineTo(h.x + f.x * T * 0.7 + perp.x * T * 0.07, h.y + f.y * T * 0.7 + perp.y * T * 0.07);
+      ctx.moveTo(h.x + f.x * T * 0.6, h.y + f.y * T * 0.6);
+      ctx.lineTo(h.x + f.x * T * 0.7 - perp.x * T * 0.07, h.y + f.y * T * 0.7 - perp.y * T * 0.07);
+      ctx.stroke();
+    }
+    for (var e = -1; e <= 1; e += 2) {
+      var ex = h.x + f.x * T * 0.12 + perp.x * T * 0.17 * e, ey = h.y + f.y * T * 0.12 + perp.y * T * 0.17 * e;
+      circle(ex, ey, T * 0.11, '#ffffff');
+      circle(ex + f.x * T * 0.04, ey + f.y * T * 0.04, T * 0.055, C.ink);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawGhost(g, now) {
+    var iv = ghostInterval(g), t = Math.min(1, g.acc / iv);
+    var q = lerpPos({ x: g.px, y: g.py }, { x: g.x, y: g.y }, g.mode === 'house' ? 1 : t);
+    var cx = (q.x + 0.5) * T, cy = (q.y + 0.5) * T;
+    if (g.mode === 'house') cy += Math.sin(now / 260 + g.id * 1.7) * T * 0.06;
+    var eyes = g.mode === 'eyes', fr = isFright(g);
+    if (!eyes) {
+      var col = C.g[g.id];
+      if (fr) col = (powerTimer < 2000 && Math.floor(now / 170) % 2) ? C.flash : C.fright;
+      var rot = now / 900 + g.id, spikes = 9;
+      ctx.beginPath();
+      for (var k = 0; k < spikes * 2; k++) {
+        var ang = k * Math.PI / spikes + rot, rr = (k % 2 ? 0.31 : 0.47) * T;
+        var px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr;
+        if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
+      ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+      circle(cx, cy, T * 0.34, col);
+      circle(cx, cy, T * 0.34, 'rgba(255,255,255,0.14)');
+    }
+    var f = g.dir || { x: 0, y: 1 };
+    circle(cx + f.x * T * 0.07, cy + f.y * T * 0.07, T * (fr ? 0.14 : 0.19), '#ffffff');
+    circle(cx + f.x * T * 0.13, cy + f.y * T * 0.13, T * (fr ? 0.06 : 0.09), C.ink);
+    if (fr) {
+      ctx.strokeStyle = C.ink; ctx.lineWidth = T * 0.05; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (var z = 0; z < 5; z++) { var zx = cx - T * 0.2 + z * T * 0.1, zy = cy + T * (z % 2 ? 0.2 : 0.26); if (z) ctx.lineTo(zx, zy); else ctx.moveTo(zx, zy); }
+      ctx.stroke();
+    }
+  }
+  function drawFx() {
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      ctx.globalAlpha = Math.max(0, p.life / p.max);
+      circle(p.x * T, p.y * T, p.r * T, p.color);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center'; ctx.font = '500 ' + Math.round(T * 0.46) + 'px "DM Mono", monospace';
+    for (var j = 0; j < floaters.length; j++) {
+      var f = floaters[j], prog = 1 - f.life / f.max;
+      ctx.globalAlpha = Math.min(1, f.life / 400);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x * T, (f.y - prog * 0.9) * T);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function draw(now) {
+    if (!mz) buildMaze();
+    ctx.drawImage(mz, 0, 0);
+    drawPellets(now);
+    drawSnake(now);
+    var i;
+    for (i = 0; i < ghosts.length; i++) if (ghosts[i].mode !== 'eyes') drawGhost(ghosts[i], now);
+    for (i = 0; i < ghosts.length; i++) if (ghosts[i].mode === 'eyes') drawGhost(ghosts[i], now);
+    drawFx();
+  }
+
+  /* ---------- input ---------- */
+  var KEYS = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3, w: 0, d: 1, s: 2, a: 3, W: 0, D: 1, S: 2, A: 3 };
+  window.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key;
+    if (Object.prototype.hasOwnProperty.call(KEYS, k)) { e.preventDefault(); input(DIRS[KEYS[k]]); return; }
+    if (k === 'p' || k === 'P') { ensureAudio(); togglePause(); return; }
+    if (k === 'm' || k === 'M') { toggleMute(); return; }
+    if ((k === ' ' || k === 'Enter') && !(e.target && e.target.tagName === 'BUTTON')) {
+      e.preventDefault();
+      if (state === 'gameover') newGame(); else if (state === 'paused') togglePause(); else if (state === 'levelclear') nextLevel();
+    }
+  });
+  muteBtn.addEventListener('click', toggleMute);
+  vb.addEventListener('click', function () { ensureAudio(); if (state === 'gameover') newGame(); else if (state === 'paused') togglePause(); else if (state === 'levelclear') nextLevel(); });
+  var sx = 0, sy = 0, swiping = false;
+  canvas.addEventListener('pointerdown', function (e) { sx = e.clientX; sy = e.clientY; swiping = true; });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!swiping) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) {
+      input(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? DIRS[1] : DIRS[3]) : (dy > 0 ? DIRS[2] : DIRS[0]));
+      sx = e.clientX; sy = e.clientY;
+    }
+  });
+  window.addEventListener('pointerup', function () { swiping = false; });
+  var pads = document.querySelectorAll('.dpad button');
+  for (var pi = 0; pi < pads.length; pi++) {
+    (function (b) { b.addEventListener('pointerdown', function (e) { e.preventDefault(); input(DIRS[parseInt(b.dataset.d, 10)]); }); })(pads[pi]);
+  }
+  document.addEventListener('visibilitychange', function () { if (document.hidden && state === 'playing') togglePause(); });
+
+  /* ---------- loop ---------- */
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(50, now - last); last = now;
+    update(dt);
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+  showMute();
+  newGame();
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script src="../../site-data.js"></script><script src="../gate.js" data-game="mazeworm" data-title="Mazeworm"></script></body></html>

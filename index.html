@@ -110,6 +110,9 @@
   .link.soon i { color: var(--muted); font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; }
   .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
   .chips li { font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,200,87,0.4); color: var(--gold); }
+  .chips li:has(a) { padding: 0; }
+  .chips a { display: block; padding: 6px 10px; border-radius: 999px; color: inherit; text-decoration: none; }
+  .chips a:hover, .chips a:focus-visible { background: rgba(255,200,87,0.14); }
 
   .player { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--line); }
   .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
@@ -209,9 +212,10 @@
   function linkRow(title, sub, url) {
     const li = el("li");
     const row = el(url ? "a" : "div", "link" + (url ? "" : " soon"));
-    if (url) { row.href = url; row.target = "_blank"; row.rel = "noopener"; }
+    const inside = url && url.charAt(0) === "/";      // pages on this site open in the same tab
+    if (url) { row.href = url; if (!inside) { row.target = "_blank"; row.rel = "noopener"; } }
     const s = el("span"); s.appendChild(el("strong", null, title)); if (sub) s.appendChild(el("small", null, sub));
-    row.appendChild(s); row.appendChild(el("i", null, url ? "↗" : "coming soon"));
+    row.appendChild(s); row.appendChild(el("i", null, url ? (inside ? "→" : "↗") : "coming soon"));
     li.appendChild(row); return li;
   }
   function section(where, heading, blurb) {
@@ -249,7 +253,13 @@
     const it = L[k]; if (!it) return;
     const sec = section(it.where, h, it.blurb);
     if (it.items && it.items.length) {
-      const ul = el("ul", "chips"); it.items.forEach((t) => ul.appendChild(el("li", null, t))); sec.appendChild(ul);
+      const ul = el("ul", "chips");
+      it.items.forEach((t) => {
+        const li = el("li");
+        if (t && t.url) { const a = el("a", null, t.name); a.href = t.url; li.appendChild(a); } else li.textContent = t && t.name ? t.name : t;
+        ul.appendChild(li);
+      });
+      sec.appendChild(ul);
     }
     const ul = el("ul", "links"); ul.appendChild(linkRow(it.title, it.url ? it.cta : "", it.url)); sec.appendChild(ul);
   });
