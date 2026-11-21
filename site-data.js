@@ -41,7 +41,7 @@ window.SITE = {
   links: {
     tv:     { where: "The TV", title: "Slopking on YouTube", cta: "Open YouTube", url: "https://www.youtube.com/@Slopking203", blurb: "My video channels. New uploads land here first." },
     phone:  { where: "The phone tripod", title: "TikTok", cta: "Open TikTok", url: "https://www.tiktok.com/@slopking203", blurb: "Short cuts, behind-the-build clips and whatever I filmed this week." },
-    arcade: { where: "The arcade cabinet", title: "Retro hybrid games", cta: "Play the games", url: "/games/", blurb: "Classic games smashed together and playable in your browser. A new mashup every month, and your first round of each is free.",
+    arcade: { where: "The arcade cabinet", title: "Retro hybrid games", cta: "Play the games", url: "/games/", blurb: "Classic games smashed together and playable in your browser. A new mashup every month.",
               /* Each game is its own page under /games/. The arcade page lists them from here too. */
               items: [
                 { name: "Paddle Fighter", url: "/games/paddle-fighter/", mashup: "Pong x Street Fighter", blurb: "Fighters are the paddles. Specials, smashes and a KO when the ball gets past." },
