@@ -142,7 +142,11 @@
   /* A game played on the arcade cabinet's screen. The shield stops stray drags from turning the room while you play. */
   .gameshield { position: fixed; inset: 0; z-index: 3; background: rgba(0,0,0,0.35); }
   .gameplayer { position: fixed; z-index: 4; left: 0; top: 0; width: 0; height: 0; background: #000; border-radius: 4px; box-shadow: 0 0 0 2px rgba(255,200,87,0.35), 0 20px 60px rgba(0,0,0,0.6); }
-  .gameplayer iframe { width: 100%; height: 100%; border: 0; display: block; border-radius: 4px; background: #000; }
+  .gameplayer { overflow: hidden; }
+  .gameplayer iframe { width: 100%; height: 100%; border: 0; display: block; border-radius: 4px; background: #000; transform-origin: 0 0; }
+  /* in the room the game is laid out at a desktop size and shrunk to the cabinet screen; full screen shows it at true size */
+  .gameplayer iframe:fullscreen { transform: none !important; width: 100vw !important; height: 100vh !important; border-radius: 0; }
+  .gameplayer iframe:-webkit-full-screen { transform: none !important; width: 100vw !important; height: 100vh !important; border-radius: 0; }
   .gameshield[hidden], .gameplayer[hidden], .gamebar[hidden], header.hud[hidden] { display: none; }
   .gamebar { position: fixed; z-index: 5; top: max(12px, env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
   .gamebar .btn { pointer-events: auto; }
@@ -1135,7 +1139,13 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     gameBox.style.transform = "translate(" + x0.toFixed(1) + "px," + y0.toFixed(1) + "px)";
     gameBox.style.width = (x1 - x0).toFixed(1) + "px"; gameBox.style.height = (y1 - y0).toFixed(1) + "px";
     gameBox.style.fontSize = Math.max(9, Math.min(18, (x1 - x0) / 26)).toFixed(1) + "px";
+    if (gameFrame && x1 - x0 >= 40 && y1 - y0 >= 40 && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      const bw = x1 - x0, bh = y1 - y0, vw = Math.max(bw, GAME_W), k = bw / vw;   // shrink, never enlarge
+      gameFrame.style.width = vw.toFixed(1) + "px"; gameFrame.style.height = (bh / k).toFixed(1) + "px";
+      gameFrame.style.transform = k < 1 ? "scale(" + k.toFixed(4) + ")" : "none";
+    }
   }
+  const GAME_W = 960;   // width each game is laid out at inside the cabinet before it is shrunk to fit
 
   /* ---------- loop ---------- */
   const v = new THREE.Vector3(); let last = performance.now();
