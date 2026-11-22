@@ -480,7 +480,7 @@ week.forEach(ship);   // then film it</pre>
     const it = L[key]; if (!it) return;
     $(tId).textContent = it.title; $(bId).textContent = it.blurb || "";
     const box = $(lId);
-    if (it.url) { const a = el("a", "btn", it.cta + " ↗"); linkOut(a, it.url); box.appendChild(a); }
+    if (it.url) { const a = el("a", "btn", it.cta + (/^mailto:/.test(it.url) ? "" : " ↗")); linkOut(a, it.url); box.appendChild(a); }
     else box.appendChild(el("span", "chip soon", it.cta + " · coming soon"));
   }
   fill("laptop", "buildTitle", "buildBlurb", "buildLink");

@@ -309,7 +309,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   function openCard(key) {
     const L = LINKS[key]; if (!L) return;
     $("cardWhere").textContent = L.where; $("cardTitle").textContent = L.title; $("cardBlurb").textContent = L.blurb;
-    const a = $("cardLink"); a.hidden = !L.url; a.href = L.url || "#"; a.textContent = L.cta + " ↗";
+    const a = $("cardLink"); a.hidden = !L.url; a.href = L.url || "#"; a.textContent = L.cta + (/^mailto:/.test(L.url || "") ? "" : " ↗");
     const gl = $("cardGames"); gl.textContent = "";                       // the arcade lists each game
     (L.items || []).forEach((g) => {
       if (!g || !g.url) return;
@@ -720,7 +720,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.fillStyle = "#508B3F"; c.fillRect(0, 300, w, 40);
       c.fillStyle = "#2E2E2E"; c.font = "bold 170px Arial Black, Arial, sans-serif"; c.textAlign = "center"; c.fillText("J", w / 2, 262);
       c.fillStyle = "#f3efe4"; c.font = "bold 44px Arial Black, Arial, sans-serif"; c.fillText("SAY HELLO", w / 2, 420);
-      c.font = "24px Arial, sans-serif"; c.fillStyle = "#b9b7ab"; c.fillText("contact", w / 2, 462);
+      c.font = "24px Arial, sans-serif"; c.fillStyle = "#b9b7ab"; c.fillText("slopking203@gmail.com", w / 2, 462);
     });
     const photo = new Image();                                   // Jay's photo replaces the "J" once it loads
     photo.onload = () => {
