@@ -51,7 +51,7 @@ window.SITE = {
                 { name: "Mazeworm", url: "/games/mazeworm/", mashup: "Snake x Pac-Man", blurb: "Grow a snake in a maze while chasers bite chunks off your tail." }
               ] },
     laptop: { where: "The desk", title: "Apps and projects", cta: "See the projects", url: "", blurb: "Web apps and tools I build on my own time, including Scrollstop." },
-    frame:  { where: "The frame on the wall", title: "About and contact", cta: "Get in touch", url: "", blurb: "Who I am, what I'm building next and how to reach me." }
+    frame:  { where: "The frame on the wall", title: "Contact", cta: "Get in touch", url: "", blurb: "Questions, ideas or collabs? Here's how to reach me." }
   },
 
   about: "I'm Jay. I build web apps, AI video pipelines and retro game mashups, then make videos about how they came together."
