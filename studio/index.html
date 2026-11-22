@@ -234,7 +234,7 @@
 </section>
 
 <div class="toast" id="toast" role="status" hidden></div>
-<div class="hud hint" id="hint"><p>Drag to look · Tap the floor to walk · Tap a gold label to open it</p></div>
+<div class="hud hint" id="hint"><p>Drag to look · Tap the floor to walk · Double-click an object or tap its gold label to use it</p></div>
 <div class="fallback" id="fallback" hidden><p>This browser could not start the 3D room. Use “All links” at the top right<span id="fallbackFlat" hidden>, or open the <a id="fallbackFlatLink" href="#" target="_blank" rel="noopener">2D version</a></span>.</p></div>
 
 <script src="/site-data.js"></script>
@@ -721,6 +721,13 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.fillStyle = "#f3efe4"; c.font = "bold 44px Arial Black, Arial, sans-serif"; c.fillText("SAY HELLO", w / 2, 420);
       c.font = "24px Arial, sans-serif"; c.fillStyle = "#b9b7ab"; c.fillText("about + contact", w / 2, 462);
     });
+    const photo = new Image();                                   // Jay's photo replaces the "J" once it loads
+    photo.onload = () => {
+      const c = tex.image.getContext("2d");
+      c.save(); c.beginPath(); c.arc(200, 200, 112, 0, Math.PI * 2); c.clip();
+      c.drawImage(photo, 88, 88, 224, 224); c.restore(); tex.needsUpdate = true;
+    };
+    photo.src = "/img/jay.jpg";
     screen(0.82, 1.06, tex, 2.0, 1.72, -2.95, g);
     register("frame", g, [2.0, 2.46, -2.95], [1.9, EYE, -1.1], [2.0, 1.72, -2.95]);
   })();
@@ -837,6 +844,13 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   }
   canvas.addEventListener("pointerup", endDrag);
   canvas.addEventListener("pointercancel", endDrag);
+  /* double-click (or double-tap) an object to use it: play the arcade, the TV or TikTok on the phone.
+     The first click has usually opened it already; this makes sure, without opening it twice. */
+  canvas.addEventListener("dblclick", (e) => {
+    const p = pick(e); if (!p || !p.key || p.key === "remote") return;
+    if (p.key === "arcade" ? arcadeOn : cardKey === p.key) return;
+    select(p.key);
+  });
 
   const keys = {};
   const MOVE = { ArrowUp: "f", KeyW: "f", ArrowDown: "b", KeyS: "b", KeyA: "l", KeyD: "r", ArrowLeft: "tl", ArrowRight: "tr" };
@@ -1032,7 +1046,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       '<button class="arw p" type="button" aria-label="Previous game">◀</button><button class="arw n" type="button" aria-label="Next game">▶</button>' +
       '<button class="start" type="button">PRESS START</button><div class="dots"></div>';
     const arws = el.querySelectorAll(".arw");
-    arws[0].addEventListener("click", () => pick(-1, "x")); arws[1].addEventListener("click", () => pick(1, "x"));
+    arws[0].addEventListener("click", () => pickGame(-1, "x")); arws[1].addEventListener("click", () => pickGame(1, "x"));
     el.querySelector(".start").addEventListener("click", () => { tapBtn(0); startGame(); });
     el.querySelector("img.ts").addEventListener("click", () => { tapBtn(0); startGame(); });
     el.querySelector(".dots").innerHTML = GAMES.map(() => "<i></i>").join("");
@@ -1047,7 +1061,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     selEl.querySelector(".b").textContent = g.blurb || "";
     selEl.querySelectorAll(".dots i").forEach((d, i) => d.classList.toggle("on", i === sel));
   }
-  function pick(step, axis) {
+  function pickGame(step, axis) {
     if (!selEl) return;
     sel = (sel + step + GAMES.length) % GAMES.length; renderPicker();
     if (axis === "y") tapStick(0, step); else tapStick(step, 0);
@@ -1099,7 +1113,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     if (!arcadeOn || gameFrame) return;
     keyToCab(e.code, true);
     const d = DIR[e.code];
-    if (d) { e.preventDefault(); if (!e.repeat) pick(d === "l" || d === "u" ? -1 : 1, d === "u" || d === "d" ? "y" : "x"); }
+    if (d) { e.preventDefault(); if (!e.repeat) pickGame(d === "l" || d === "u" ? -1 : 1, d === "u" || d === "d" ? "y" : "x"); }
     else if (e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space") { e.preventDefault(); if (!e.repeat) startGame(); }
   });
   window.addEventListener("keyup", (e) => { if (arcadeOn) keyToCab(e.code, false); });
@@ -1109,7 +1123,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     e.preventDefault();
     wheelAcc += e.deltaY || e.deltaX;
     const now = performance.now();
-    if (Math.abs(wheelAcc) > 40 && now - wheelAt > 220) { pick(wheelAcc > 0 ? 1 : -1, "y"); wheelAcc = 0; wheelAt = now; }
+    if (Math.abs(wheelAcc) > 40 && now - wheelAt > 220) { pickGame(wheelAcc > 0 ? 1 : -1, "y"); wheelAcc = 0; wheelAt = now; }
   }
   gameShield.addEventListener("wheel", onWheel, { passive: false });
   gameBox.addEventListener("wheel", onWheel, { passive: false });
@@ -1118,7 +1132,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   gameBox.addEventListener("touchstart", (e) => { if (!gameFrame && e.touches.length === 1) swX = e.touches[0].clientX; }, { passive: true });
   gameBox.addEventListener("touchend", (e) => {
     if (swX === null || gameFrame) return; const dx = e.changedTouches[0].clientX - swX; swX = null;
-    if (Math.abs(dx) > 40) pick(dx < 0 ? 1 : -1, "x");
+    if (Math.abs(dx) > 40) pickGame(dx < 0 ? 1 : -1, "x");
   });
 
   function updateGamePlayer(w, h) {
