@@ -65,6 +65,8 @@ window.SITE = {
 window.SITE_SUBSCRIBE = function (email) {
   var action = window.SITE && window.SITE.ebook && window.SITE.ebook.kitFormAction;
   if (!action) return Promise.reject("off");
+  /* any signup on the site (ebook form or game popup) unlocks the games on this device */
+  function unlock(how) { try { localStorage.setItem("jaysstudio_signedup", "1"); } catch (e) {} return how; }
   function viaPage() {
     var f = document.createElement("form");
     f.method = "post"; f.action = action; f.target = "_blank"; f.style.display = "none";
@@ -83,7 +85,7 @@ window.SITE_SUBSCRIBE = function (email) {
       if (r.ok) return "ok";
       return viaPage();
     });
-  }, function () { return viaPage(); });
+  }, function () { return viaPage(); }).then(unlock);
 };
 
 /* Player address for a channel's uploads (newest first), or "" if it has none. */
