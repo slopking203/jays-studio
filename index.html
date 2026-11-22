@@ -35,6 +35,7 @@
     --r: 22px;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; }
   html { scroll-behavior: smooth; }
   body {
@@ -115,7 +116,7 @@
   .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   /* the free ebook as a printed paperback: front cover, page block, back board, cast shadow */
   .stage .glow { position: absolute; inset: 8%; border-radius: 50%; background: radial-gradient(circle at 50% 45%, rgba(255,200,87,0.16), rgba(255,200,87,0) 62%); }
-  .book { --w: clamp(132px, 40%, 186px); --h: calc(var(--w) * 1.6016); --t: calc(var(--w) * 0.085);
+  .book { --w: clamp(132px, 16vw, 186px); --h: calc(var(--w) * 1.6016); --t: calc(var(--w) * 0.085);
     position: absolute; left: 50%; top: 50%; width: var(--w); height: var(--h); margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2); perspective: 1100px; }
   .book::before { content: ""; position: absolute; left: 6%; right: -24%; bottom: -5%; height: 9%; border-radius: 50%;
     background: radial-gradient(ellipse at 45% 50%, rgba(0,0,0,0.62), rgba(0,0,0,0) 70%); filter: blur(4px); }
@@ -134,7 +135,9 @@
     box-shadow: inset 0 0 6px rgba(0,0,0,0.25); }
   .book .back { position: absolute; inset: 0; transform: translateZ(calc(var(--t) / -2)); border-radius: 1px 3px 3px 1px; background: #2E2E2E;
     box-shadow: -18px 22px 40px rgba(0,0,0,0.55); }
-  .book .spine { position: absolute; top: 0; height: 100%; width: var(--t); left: calc(var(--t) / -2); transform: rotateY(-90deg); background: linear-gradient(90deg, #3d6d30, #508B3F 50%, #3d6d30); }
+  .book .spine { position: absolute; top: 0; height: 100%; width: var(--t); left: calc(var(--t) / -2); transform: rotateY(-90deg); background: linear-gradient(90deg, #2f5726, #508B3F 45%, #44783a 70%, #2f5726); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .book .spine span { writing-mode: vertical-rl; font: 700 calc(var(--t) * 0.5)/1 var(--font-display); letter-spacing: 0.06em; color: #fff; white-space: nowrap; }
+  .book .spine span b { color: #FFC857; font-weight: 700; }
   .stage .chip { position: absolute; }
   .stage .c1 { left: 0; top: 20%; }
   .stage .c2 { right: 0; top: 48%; }
@@ -191,7 +194,7 @@
   .code i { color: #9ccf8a; font-style: normal; }
 
   /* footer */
-  footer.end { background: var(--charcoal); color: var(--on-dark); border-radius: var(--r); padding: 40px 28px 0; overflow: hidden; display: flex; flex-direction: column; gap: 28px; margin-top: 22px; }
+  footer.end { background: var(--charcoal); color: var(--on-dark); border-radius: var(--r); padding: 40px 28px 12px; overflow: hidden; display: flex; flex-direction: column; gap: 28px; margin-top: 22px; }
   .end .cta { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; }
   .end .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .end .cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; font-size: 14px; border-top: 1px solid var(--line-dark); padding-top: 22px; }
@@ -199,7 +202,7 @@
   .end .cols a { display: block; text-decoration: none; color: var(--on-dark); padding: 3px 0; }
   .end .cols a:hover { color: var(--gold); }
   .end .cols span { display: block; color: var(--on-dark-muted); padding: 3px 0; }
-  .giant { margin: 0; padding-bottom: 0.18em; font: 700 clamp(28px, 8.2vw, 104px)/1 var(--font-display); letter-spacing: -0.05em; text-align: center; white-space: nowrap; color: var(--on-dark); }
+  .giant { margin: 0; padding: 0.05em 0 0.32em; font: 700 clamp(28px, 8.2vw, 104px)/1.15 var(--font-display); letter-spacing: -0.03em; text-align: center; white-space: nowrap; color: var(--on-dark); }
   .giant span { color: var(--gold); }
 
   /* phones and small tablets */
@@ -219,7 +222,7 @@
     .orbit { right: 18px; top: 18px; }
     .orbit i { width: 18px; height: 18px; }
     .stage .chip { font-size: 11px; }
-    .end { padding: 32px 18px 0; }
+    .end { padding: 32px 18px 10px; }
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .game .shot img, .book .b3d { transition: none; } }
 </style>
@@ -273,7 +276,7 @@
         <circle cx="50" cy="1" r="1.1" fill="#FFC857" stroke="none"/><circle cx="99" cy="50" r="1.1" fill="#F3F1EA" stroke="none"/><circle cx="50" cy="99" r="1.1" fill="#F3F1EA" stroke="none"/><circle cx="1" cy="50" r="1.1" fill="#508B3F" stroke="none"/>
       </svg>
       <div class="glow"></div>
-      <div class="book"><div class="b3d"><div class="back"></div><div class="spine"></div><div class="pages"></div><div class="front"><img src="/ebook/cover-3d.jpg" alt="" width="512" height="820"></div></div></div>
+      <div class="book"><div class="b3d"><div class="back"></div><div class="spine"><span>AI FOR NORMIES · <b>SLOPKING</b></span></div><div class="pages"></div><div class="front"><img src="/ebook/cover-3d.jpg" alt="" width="512" height="820"></div></div></div>
       <span class="chip c1">Make a meme</span>
       <span class="chip c2">Turn a photo into art</span>
       <span class="chip c3">Dinner from your fridge</span>
