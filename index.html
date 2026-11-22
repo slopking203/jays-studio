@@ -154,7 +154,7 @@
   .player .poster { position: absolute; inset: 0; display: grid; place-items: center; text-decoration: none; color: #fff; background: radial-gradient(circle at 30% 30%, #3b4a35, #111 70%); }
   .player .poster span { width: 74px; height: 74px; border-radius: 50%; background: var(--gold); display: grid; place-items: center; color: var(--ink); font-size: 26px; }
   .watch .side { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
-  .ttembed { padding: 0; overflow: hidden; background: #fff; height: 600px; }
+  .ttembed { padding: 0; overflow: hidden; background: #fff; height: 456px; }
   .ttembed iframe { display: block; width: 100%; height: 100%; border: 0; }
   .chan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .chan a, .chan div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 0; text-decoration: none; border-top: 1px solid var(--line); }
@@ -209,7 +209,7 @@
   /* phones and small tablets */
   @media (max-width: 860px) {
     .hero, .watch, .ebook, .pair { grid-template-columns: minmax(0, 1fr); }
-    .ttembed { order: 1; height: 560px; }
+    .ttembed { order: 1; height: 500px; }
     .watch .side { order: 2; }
     .intro { min-height: 0; }
     .games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
