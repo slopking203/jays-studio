@@ -87,28 +87,15 @@
   nav.jump a:hover { background: var(--tile-2); color: var(--ink); }
 
   /* hero */
-  .hero { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; }
-  .intro { display: flex; flex-direction: column; justify-content: space-between; gap: 36px; padding: 30px; min-height: 380px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .intro { display: flex; flex-direction: column; justify-content: space-between; gap: 36px; padding: 30px; min-height: 340px; }
   .intro .row2 { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; }
   .intro .acts { display: flex; gap: 8px; flex-wrap: wrap; }
   .orbit { position: absolute; right: 26px; top: 26px; display: flex; gap: 10px; }
   .orbit i { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); display: block; }
   .orbit i + i { background: var(--green); }
-  .photo { padding: 0; overflow: hidden; background: linear-gradient(160deg, #F4F5F1, #D5DBD0); display: flex; flex-direction: column; justify-content: flex-end; min-height: 380px; }
-  .photo > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
-  .photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(20,20,19,0.5)); }
-  .photo .cap { position: relative; z-index: 1; margin: 14px; padding: 12px 14px; border-radius: 16px; background: rgba(247,247,244,0.84); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .photo .cap strong { font-weight: 600; display: flex; align-items: center; gap: 6px; }
-  .photo .cap small { color: var(--soft); font-size: 12px; display: block; }
-  .photo .chip { position: absolute; z-index: 1; top: 16px; left: 16px; }
 
   /* numbers strip */
-  .nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-  .num { display: flex; flex-direction: column; gap: 22px; }
-  .num strong { font: 400 clamp(46px, 6vw, 68px)/0.9 var(--font-body); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
-  .num strong sup { font: 500 11px/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; vertical-align: top; margin-left: 6px; color: var(--green); }
-  .num p { margin: 0; color: var(--soft); font-size: 14px; max-width: 30ch; }
-  .num .tag { color: var(--soft); }
 
   /* ebook band */
   .ebook { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; padding: 34px; overflow: hidden; scroll-margin-top: 16px; }
@@ -192,13 +179,12 @@
   .end .cols a { display: block; text-decoration: none; color: var(--on-dark); padding: 3px 0; }
   .end .cols a:hover { color: var(--gold); }
   .end .cols span { display: block; color: var(--on-dark-muted); padding: 3px 0; }
-  .giant { margin: 0 0 -0.16em; font: 700 clamp(44px, 12.4vw, 156px)/0.9 var(--font-display); letter-spacing: -0.05em; text-align: center; white-space: nowrap; color: var(--on-dark); }
+  .giant { margin: 0; padding-bottom: 0.18em; font: 700 clamp(28px, 8.2vw, 104px)/1 var(--font-display); letter-spacing: -0.05em; text-align: center; white-space: nowrap; color: var(--on-dark); }
   .giant span { color: var(--gold); }
 
   /* phones and small tablets */
   @media (max-width: 860px) {
     .hero, .watch, .ebook, .pair { grid-template-columns: minmax(0, 1fr); }
-    .photo { min-height: 360px; }
     .intro { min-height: 0; }
     .games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ebook { padding: 24px; }
@@ -207,7 +193,6 @@
     nav.jump { display: none; }
   }
   @media (max-width: 560px) {
-    .nums { grid-template-columns: minmax(0, 1fr); }
     .games { grid-template-columns: minmax(0, 1fr); }
     .tile { padding: 18px; }
     .intro { padding: 22px; gap: 28px; }
@@ -230,7 +215,7 @@
     <a class="btn" id="to3d" href="/studio/">Walk the 3D studio ↗</a>
   </header>
 
-  <!-- hero: headline + photo -->
+  <!-- hero: headline -->
   <div class="hero">
     <div class="tile intro">
       <div class="orbit" aria-hidden="true"><i></i><i></i></div>
@@ -243,18 +228,6 @@
         </div>
       </div>
     </div>
-    <div class="tile photo">
-      <img src="/img/jay.jpg" alt="Jay, smiling, in front of a plain wall" width="512" height="512">
-      <span class="chip"><span class="dot"></span>Slopking on YouTube</span>
-      <div class="cap"><span><strong>Jay</strong><small>Videos, games and apps made with AI</small></span><small>@Slopking203</small></div>
-    </div>
-  </div>
-
-  <!-- numbers -->
-  <div class="nums">
-    <div class="tile num"><p class="tag"><span>Free ebook</span><span>01</span></p><strong>10<sup>ways</sup></strong><p>to put AI to work this week, each one something you can try in an evening.</p></div>
-    <div class="tile num"><p class="tag"><span>Arcade cabinet</span><span>02</span></p><strong id="gameCount">5<sup>games</sup></strong><p>retro hybrids you can play right here in your browser, free.</p></div>
-    <div class="tile num"><p class="tag"><span>Paddle Fighter</span><span>03</span></p><strong>84<sup>versions</sup></strong><p>it took to turn Pong and Street Fighter into one game.</p></div>
   </div>
 
   <!-- ebook -->
@@ -419,7 +392,6 @@ week.forEach(ship);   // then film it</pre>
 
   /* play: a cartridge per game, then the arcade page */
   const A = L.arcade || {}, games = (A.items || []).filter((g) => g && g.name);
-  if (games.length) $("gameCount").firstChild.textContent = String(games.length);
   games.forEach((g) => {
     const slug = ((g.url || "").match(/\/games\/([\w-]+)/) || [])[1];
     const card = el(g.url ? "a" : "div", "tile game"); if (g.url) card.href = g.url;
