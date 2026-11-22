@@ -153,15 +153,16 @@
   .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .player .poster { position: absolute; inset: 0; display: grid; place-items: center; text-decoration: none; color: #fff; background: radial-gradient(circle at 30% 30%, #3b4a35, #111 70%); }
   .player .poster span { width: 74px; height: 74px; border-radius: 50%; background: var(--gold); display: grid; place-items: center; color: var(--ink); font-size: 26px; }
-  .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-  .side .tile { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+  .watch .side { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+  .ttembed { padding: 0; overflow: hidden; background: #fff; height: 600px; }
+  .ttembed iframe { display: block; width: 100%; height: 100%; border: 0; }
   .chan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .chan a, .chan div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 0; text-decoration: none; border-top: 1px solid var(--line); }
   .chan li:first-child a, .chan li:first-child div { border-top: 0; padding-top: 2px; }
   .chan strong { font-weight: 600; display: block; }
   .chan small { color: var(--soft); font-size: 13px; }
   .chan i { font-style: normal; color: var(--green); }
-  .side .btn { align-self: flex-start; }
+  .watch .side .btn { align-self: flex-start; }
   .tiktok { text-decoration: none; }
   .tiktok h3 { margin: 0; font: 400 28px/1.1 var(--font-body); letter-spacing: -0.02em; }
   .tiktok .handle { font: 500 13px/1 var(--font-mono); color: var(--gold); }
@@ -208,6 +209,8 @@
   /* phones and small tablets */
   @media (max-width: 860px) {
     .hero, .watch, .ebook, .pair { grid-template-columns: minmax(0, 1fr); }
+    .ttembed { order: 1; height: 560px; }
+    .watch .side { order: 2; }
     .intro { min-height: 0; }
     .games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ebook { padding: 24px; }
@@ -290,19 +293,18 @@
   </div>
   <div class="watch">
     <div class="tile player" id="player"></div>
-    <div class="side">
-      <div class="tile">
-        <p class="tag"><span>The TV</span><span>04</span></p>
-        <ul class="chan" id="channels"></ul>
-        <a class="btn" id="subBtn" href="#" target="_blank" rel="noopener" hidden>Subscribe ↗</a>
-      </div>
-      <a class="tile dark tiktok" id="tiktok" href="#" target="_blank" rel="noopener">
-        <p class="tag"><span>The phone tripod</span><span>05</span></p>
-        <h3>TikTok</h3>
-        <p class="lede" id="tiktokBlurb"></p>
-        <span class="handle" id="tiktokHandle"></span>
-      </a>
+    <div class="tile side">
+      <p class="tag"><span>The TV</span><span>04</span></p>
+      <ul class="chan" id="channels"></ul>
+      <a class="btn" id="subBtn" href="#" target="_blank" rel="noopener" hidden>Subscribe ↗</a>
     </div>
+    <div class="tile ttembed" id="ttEmbed" hidden></div>
+    <a class="tile dark tiktok side" id="tiktok" href="#" target="_blank" rel="noopener">
+      <p class="tag"><span>The phone tripod</span><span>05</span></p>
+      <h3>TikTok</h3>
+      <p class="lede" id="tiktokBlurb"></p>
+      <span class="btn gold">Follow <span id="tiktokHandle"></span></span>
+    </a>
   </div>
 
   <!-- play -->
@@ -410,7 +412,13 @@ week.forEach(ship);   // then film it</pre>
   if (L.phone) {
     if (L.phone.url) linkOut($("tiktok"), L.phone.url);
     $("tiktokBlurb").textContent = L.phone.blurb || "";
-    const m = (L.phone.url || "").match(/@([\w.]+)/); $("tiktokHandle").textContent = m ? "@" + m[1] + " ↗" : "";
+    const m = (L.phone.url || "").match(/@([\w.]+)/); $("tiktokHandle").textContent = m ? "@" + m[1] + " ↗" : "on TikTok ↗";
+    if (m && !window.JS_MOCKUP) {
+      const f = document.createElement("iframe");
+      f.src = "https://www.tiktok.com/embed/@" + encodeURIComponent(m[1]); f.title = "@" + m[1] + " on TikTok"; f.loading = "lazy";
+      f.allow = "autoplay; encrypted-media; fullscreen; clipboard-write";
+      $("ttEmbed").appendChild(f); $("ttEmbed").hidden = false;
+    }
   }
 
   /* play: a cartridge per game, then the arcade page */
