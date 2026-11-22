@@ -137,8 +137,8 @@
   /* TikTok on the phone screen: TikTok's profile embed laid out at phone width, then scaled down onto the 3D phone */
   .phoneplayer { position: fixed; z-index: 1; left: 0; top: 0; width: 0; height: 0; overflow: hidden; background: #000; border-radius: 4px; }
   .phoneplayer[hidden] { display: none; }
-  .phoneplayer .in { width: 324px; transform-origin: 0 0; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; }
-  .phoneplayer blockquote { margin: 0 !important; }
+  .phoneplayer .in { width: 324px; transform-origin: 0 0; overflow: hidden; background: #fff; }
+  .phoneplayer .in iframe { width: 100%; height: 100%; border: 0; display: block; }
   /* A game played on the arcade cabinet's screen. The shield stops stray drags from turning the room while you play. */
   .gameshield { position: fixed; inset: 0; z-index: 3; background: rgba(0,0,0,0.35); }
   .gameplayer { position: fixed; z-index: 4; left: 0; top: 0; width: 0; height: 0; background: #000; border-radius: 4px; box-shadow: 0 0 0 2px rgba(255,200,87,0.35), 0 20px 60px rgba(0,0,0,0.6); }
@@ -890,7 +890,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
 
   /* ---------- TikTok over the phone screen ----------
      Same idea as the TV: shows while the phone card is open and the camera has arrived.
-     TikTok's profile embed (embed.js) needs about 300px of width, so it is laid out at
+     TikTok's profile embed needs about 300px of width, so it is laid out at
      phone width and scaled down to the screen. */
   const phoneBox = $("phonePlayer"), phoneIn = $("phoneIn");
   const TT = (LINKS.phone && LINKS.phone.url) || "", TT_HANDLE = (TT.match(/@([\w.]+)/) || [])[1] || "";
@@ -898,16 +898,13 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   const phoneCorners = [[-0.049, 0.107], [0.049, 0.107], [-0.049, -0.107], [0.049, -0.107]].map((p) => new THREE.Vector3(p[0], p[1], 0.001));
   const pv = new THREE.Vector3();
   function loadTikTok() {
+    // TikTok's own profile embed page in a frame. It shows on browsers that block TikTok's embed.js script.
     phoneIn.textContent = "";
-    const q = document.createElement("blockquote");
-    q.className = "tiktok-embed"; q.setAttribute("cite", "https://www.tiktok.com/@" + TT_HANDLE);
-    q.setAttribute("data-unique-id", TT_HANDLE); q.setAttribute("data-embed-type", "creator");
-    q.style.maxWidth = "324px"; q.style.minWidth = "288px";
-    const sec = document.createElement("section"), a = document.createElement("a");
-    a.href = "https://www.tiktok.com/@" + TT_HANDLE + "?refer=creator_embed"; a.target = "_blank"; a.rel = "noopener"; a.textContent = "@" + TT_HANDLE;
-    sec.appendChild(a); q.appendChild(sec); phoneIn.appendChild(q);
-    const sc = document.createElement("script"); sc.async = true; sc.src = "https://www.tiktok.com/embed.js";   // a fresh copy each time makes it pick up the new embed
-    phoneIn.appendChild(sc);
+    const f = document.createElement("iframe");
+    f.src = "https://www.tiktok.com/embed/@" + encodeURIComponent(TT_HANDLE);
+    f.title = "@" + TT_HANDLE + " on TikTok"; f.allow = "autoplay; encrypted-media; fullscreen; clipboard-write";
+    f.referrerPolicy = "strict-origin-when-cross-origin";
+    phoneIn.appendChild(f);
   }
   function updatePhonePlayer(w, h) {
     const want = cardKey === "phone" && TT_HANDLE && phoneScreen;
