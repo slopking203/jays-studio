@@ -146,6 +146,21 @@
   .gameshield[hidden], .gameplayer[hidden], .gamebar[hidden], header.hud[hidden] { display: none; }
   .gamebar { position: fixed; z-index: 5; top: max(12px, env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
   .gamebar .btn { pointer-events: auto; }
+  .arcsel { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5em; padding: 0.8em;
+    background: radial-gradient(120% 90% at 50% 0%, #1d2a18, #0b0f0a 70%); color: var(--paper); text-align: center; font-family: var(--font-body); overflow: hidden; border-radius: 4px; }
+  .arcsel .k { margin: 0; font: 700 0.75em/1 "Courier New", monospace; letter-spacing: 0.25em; color: var(--gold); }
+  .arcsel .row { display: flex; align-items: center; gap: 0.6em; width: 100%; justify-content: center; }
+  .arcsel .mid { flex: 1; min-width: 0; }
+  .arcsel h3 { margin: 0; font: 700 1.6em/1.1 var(--font-display); }
+  .arcsel .m { margin: 0.35em 0 0; color: var(--gold); font-size: 0.75em; letter-spacing: 0.08em; text-transform: uppercase; }
+  .arcsel .b { margin: 0.4em 0 0; color: var(--muted); font-size: 0.85em; line-height: 1.35; }
+  .arcsel .arw { flex: none; width: 2.2em; height: 2.2em; border-radius: 50%; border: 1px solid rgba(255,200,87,0.5); background: transparent; color: var(--gold); font-size: 1em; cursor: pointer; }
+  .arcsel .play { margin-top: 0.4em; font: 700 1em/1 var(--font-body); padding: 0.7em 1.6em; border-radius: 999px; border: 0; background: var(--green); color: var(--paper); cursor: pointer; }
+  .arcsel .h { margin: 0.2em 0 0; color: var(--muted); font-size: 0.7em; }
+  .arcsel .dots { display: flex; gap: 0.4em; margin: 0.2em 0 0; }
+  .arcsel .dots i { width: 0.45em; height: 0.45em; border-radius: 50%; background: rgba(243,239,228,0.25); }
+  .arcsel .dots i.on { background: var(--gold); }
+  .gamebar .btn[hidden] { display: none; }
   .gamebar .name { align-self: center; color: var(--paper); font-weight: 600; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.8); margin-right: 4px; }
 
   /* Plain list of every link, for anyone who would rather not walk */
@@ -175,7 +190,7 @@
 <div class="phoneplayer" id="phonePlayer" hidden><div class="in" id="phoneIn"></div></div>
 <div class="gameshield" id="gameShield" hidden></div>
 <div class="gameplayer" id="gamePlayer" hidden></div>
-<div class="gamebar" id="gameBar" hidden><span class="name" id="gameName"></span><button class="btn" id="gameFull" type="button">Full screen</button><button class="btn" id="gameExit" type="button">Exit game</button></div>
+<div class="gamebar" id="gameBar" hidden><span class="name" id="gameName"></span><button class="btn" id="gameMenu" type="button" hidden>Games</button><button class="btn" id="gameFull" type="button" hidden>Full screen</button><button class="btn" id="gameExit" type="button">Exit game</button></div>
 
 <header class="hud top">
   <div>
@@ -624,7 +639,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   })();
 
   /* Arcade cabinet -> games */
-  let arcadeScreen = null;                                 // the screen mesh, for playing a game on it
+  let arcadeScreen = null, arcadeStick = null, arcadeBtns = [];   // screen mesh, joystick pivot and buttons, for playing on the cabinet
   (function () {
     const g = new THREE.Group(); g.position.set(3.25, 0, -2.4); g.rotation.y = -0.64; scene.add(g);
     const body = mat(0x1f1f1f, { roughness: 0.6 });
@@ -632,9 +647,11 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     box(0.78, 0.95, 0.5, body, 0, 1.42, -0.12, g);
     box(0.82, 0.16, 0.56, mat(C.gold, { emissive: C.gold, emissiveIntensity: 0.55 }), 0, 1.93, -0.09, g);
     const panelM = box(0.78, 0.06, 0.34, mat(0x2b2b2b), 0, 0.97, 0.22, g); panelM.rotation.x = 0.18;
-    cyl(0.012, 0.012, 0.09, mat(0x999999), -0.2, 1.04, 0.22, g, 8);
-    add(new THREE.SphereGeometry(0.03, 12, 12), mat(0xd94b3d), -0.2, 1.09, 0.22, g);
-    cyl(0.028, 0.028, 0.02, mat(C.gold), 0.08, 1.01, 0.24, g, 16); cyl(0.028, 0.028, 0.02, mat(C.green), 0.2, 1.01, 0.22, g, 16);
+    // the joystick sits on a pivot so it can lean, and the two buttons can sink when pressed
+    arcadeStick = new THREE.Group(); arcadeStick.position.set(-0.2, 0.995, 0.22); g.add(arcadeStick);
+    cyl(0.012, 0.012, 0.09, mat(0x999999), 0, 0.045, 0, arcadeStick, 8);
+    add(new THREE.SphereGeometry(0.03, 12, 12), mat(0xd94b3d), 0, 0.095, 0, arcadeStick);
+    arcadeBtns = [cyl(0.028, 0.028, 0.02, mat(C.gold), 0.08, 1.01, 0.24, g, 16), cyl(0.028, 0.028, 0.02, mat(C.green), 0.2, 1.01, 0.22, g, 16)];
     box(0.04, 1.9, 0.78, mat(C.green), -0.41, 0.95, -0.0, g); box(0.04, 1.9, 0.78, mat(C.green), 0.41, 0.95, -0.0, g);
     const tex = canvasTex(320, 320, (c, w, h) => {
       c.fillStyle = "#0b0f0a"; c.fillRect(0, 0, w, h);
@@ -752,6 +769,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
 
   function select(key) {
     if (key === "remote") { setChannel(chIndex + 1, true); return; }
+    if (key === "arcade" && arcadeScreen && GAMES.length) { enterArcade(); return; }
     const it = interactives.find((i) => i.key === key); if (!it) return;
     moveTo = { x: it.view.x, z: it.view.z };
     const dx = it.look.x - it.view.x, dy = it.look.y - EYE, dz = it.look.z - it.view.z;
@@ -807,7 +825,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   const MOVE = { ArrowUp: "f", KeyW: "f", ArrowDown: "b", KeyS: "b", KeyA: "l", KeyD: "r", ArrowLeft: "tl", ArrowRight: "tr" };
   window.addEventListener("keydown", (e) => {
     const t = e.target; if (t && t !== canvas && t !== document.body) return;
-    if (playing) return;
+    if (arcadeOn) return;
     if (MOVE[e.code]) { keys[MOVE[e.code]] = true; moveTo = null; lookTo = null; e.preventDefault(); }
   });
   window.addEventListener("keyup", (e) => { if (MOVE[e.code]) keys[MOVE[e.code]] = false; });
@@ -896,43 +914,127 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     }
   }
 
-  /* ---------- a game on the arcade cabinet's screen ----------
-     Tapping a game in the arcade card walks you up close, so the cabinet's screen fills most of the
-     window, then plays the game's own page there. Full screen hands the game the whole screen. */
+  /* ---------- the arcade cabinet ----------
+     Tapping the cabinet walks you up to it (screen and controls both in view) and shows a game
+     picker on its screen, starting on Paddle Fighter. Arrow keys, scrolling or the arrows on screen
+     move through the games; Enter, Space or Play starts one on the screen. The joystick leans and
+     the buttons sink with the keys you press, in the picker and while you play. */
   const gameBox = $("gamePlayer"), gameShield = $("gameShield"), gameBar = $("gameBar");
-  const AW = 0.62, AH = 0.56;
   const topBar = document.querySelector("header.hud.top");
+  const GAMES = ((LINKS.arcade && LINKS.arcade.items) || []).filter((g) => g && g.url);
+  const AW = 0.62, AH = 0.56;
   const gameCorners = [[-AW / 2, AH / 2], [AW / 2, AH / 2], [-AW / 2, -AH / 2], [AW / 2, -AH / 2]].map((p) => new THREE.Vector3(p[0], p[1], 0.001));
   const gv = new THREE.Vector3();
-  let playing = null, gameFrame = null;
-  function playGame(g) {
-    if (!arcadeScreen) { window.open(g.url, "_blank", "noopener"); return; }
-    stopGame(true);
-    playing = g; closeCard(); $("hint").hidden = true;
-    $("gameName").textContent = g.name; gameBar.hidden = false; gameShield.hidden = false; topBar.hidden = true;
-    // stand back just far enough that the screen fills about 85% of the window
+  let arcadeOn = false, sel = Math.max(0, GAMES.findIndex((g) => /paddle/i.test(g.name))), playing = null, gameFrame = null, selEl = null;
+
+  /* joystick and buttons: held keys lean the stick and sink the buttons; taps give a short press */
+  const held = { l: 0, r: 0, u: 0, d: 0 }, btnHeld = [0, 0], tapUntil = { x: 0, y: 0, t: 0, b: [0, 0] };
+  const DIR = { ArrowLeft: "l", KeyA: "l", ArrowRight: "r", KeyD: "r", ArrowUp: "u", KeyW: "u", ArrowDown: "d", KeyS: "d" };
+  const BTN_A = { Space: 1, Enter: 1, NumpadEnter: 1, KeyZ: 1, KeyJ: 1 };
+  function keyToCab(code, down) {
+    if (DIR[code]) { held[DIR[code]] = down ? 1 : 0; return; }
+    if (/^(Shift|Control|Alt|Meta|Tab|Escape|CapsLock)/.test(code)) return;
+    btnHeld[BTN_A[code] ? 0 : 1] = down ? 1 : 0;
+  }
+  function tapStick(x, y) { tapUntil.x = x; tapUntil.y = y; tapUntil.t = performance.now() + 180; }
+  function tapBtn(i) { tapUntil.b[i] = performance.now() + 140; }
+  function tickArcade(dt) {
+    if (!arcadeStick) return;
+    const now = performance.now(), tapOn = now < tapUntil.t;
+    const x = (held.r - held.l) || (tapOn ? tapUntil.x : 0), y = (held.d - held.u) || (tapOn ? tapUntil.y : 0);
+    const k = 1 - Math.pow(0.0005, dt), L = 0.38;
+    arcadeStick.rotation.z += (-x * L - arcadeStick.rotation.z) * k;   // lean left or right
+    arcadeStick.rotation.x += (y * L - arcadeStick.rotation.x) * k;    // lean toward or away from you
+    arcadeBtns.forEach((b, i) => {
+      const down = btnHeld[i] || now < tapUntil.b[i];
+      const want = 1.01 - (down ? 0.012 : 0);
+      b.position.y += (want - b.position.y) * Math.min(1, dt * 30);
+    });
+  }
+
+  function frameArcade() {
+    // stand back far enough to see the whole screen and the controls under it
     arcadeScreen.updateWorldMatrix(true, false);
     const c = new THREE.Vector3(); arcadeScreen.getWorldPosition(c);
     const n = new THREE.Vector3(0, 0, 1).transformDirection(arcadeScreen.matrixWorld); n.y = 0; n.normalize();
     const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
     const t = 2 * Math.tan((camera.fov * Math.PI) / 360);
-    const d = Math.max(AH / (0.82 * t), AW / (0.92 * t * (w / h))) + 0.02;
+    const d = Math.max(0.8 / (0.92 * t), AW / (0.9 * t * (w / h))) + 0.02;
     const vx = clamp(c.x + n.x * d, -BOUNDS.x, BOUNDS.x), vz = clamp(c.z + n.z * d, -BOUNDS.z, BOUNDS.z);
     moveTo = { x: vx, z: vz };
-    const dx = c.x - vx, dy = c.y - EYE, dz = c.z - vz;
+    const dx = c.x - vx, dy = 1.37 - EYE, dz = c.z - vz;
     lookTo = { yaw: Math.atan2(-dx, -dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) };
     if (reduceMotion) { state.x = vx; state.z = vz; state.yaw = lookTo.yaw; state.pitch = lookTo.pitch; moveTo = lookTo = null; }
   }
-  function stopGame(quiet) {
-    if (!playing) return false;
+  function setBar() {
+    $("gameName").textContent = playing ? playing.name : "Arcade";
+    $("gameMenu").hidden = !playing; $("gameFull").hidden = !playing;
+  }
+  function enterArcade(game) {
+    if (!arcadeOn) {
+      arcadeOn = true; closeCard(); $("hint").hidden = true; topBar.hidden = true;
+      gameShield.hidden = false; gameBar.hidden = false; frameArcade();
+    }
+    if (game) { const i = GAMES.indexOf(game); if (i >= 0) sel = i; startGame(); }
+    else showPicker();
+  }
+  function clearScreen() { gameBox.textContent = ""; gameFrame = null; selEl = null; }
+  function showPicker() {
     if (document.fullscreenElement || document.webkitFullscreenElement) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} }
-    playing = null; gameBox.textContent = ""; gameFrame = null;
-    gameBox.hidden = true; gameShield.hidden = true; gameBar.hidden = true; topBar.hidden = false;
-    if (!quiet) { openCard("arcade"); canvas.focus({ preventScroll: true }); }
+    playing = null; clearScreen(); setBar();
+    const el = document.createElement("div"); el.className = "arcsel";
+    el.innerHTML = '<p class="k">SELECT GAME</p><div class="row"><button class="arw" type="button" aria-label="Previous game">◀</button>' +
+      '<div class="mid"><h3></h3><p class="m"></p><p class="b"></p></div><button class="arw" type="button" aria-label="Next game">▶</button></div>' +
+      '<button class="play" type="button">Play</button><div class="dots"></div><p class="h">← → or scroll to pick · Enter to play</p>';
+    const arws = el.querySelectorAll(".arw");
+    arws[0].addEventListener("click", () => pick(-1, "x")); arws[1].addEventListener("click", () => pick(1, "x"));
+    el.querySelector(".play").addEventListener("click", () => { tapBtn(0); startGame(); });
+    el.querySelector(".dots").innerHTML = GAMES.map(() => "<i></i>").join("");
+    gameBox.appendChild(el); selEl = el; renderPicker();
+  }
+  function renderPicker() {
+    if (!selEl) return;
+    const g = GAMES[sel];
+    selEl.querySelector("h3").textContent = g.name;
+    selEl.querySelector(".m").textContent = g.mashup || "";
+    selEl.querySelector(".b").textContent = g.blurb || "";
+    selEl.querySelectorAll(".dots i").forEach((d, i) => d.classList.toggle("on", i === sel));
+  }
+  function pick(step, axis) {
+    if (!selEl) return;
+    sel = (sel + step + GAMES.length) % GAMES.length; renderPicker();
+    if (axis === "y") tapStick(0, step); else tapStick(step, 0);
+  }
+  function startGame() {
+    playing = GAMES[sel]; clearScreen(); setBar();
+    const f = document.createElement("iframe");
+    f.src = playing.url; f.title = playing.name; f.allow = "fullscreen; autoplay; gamepad"; f.allowFullscreen = true;
+    gameBox.appendChild(f); gameFrame = f;
+    f.addEventListener("load", () => {
+      try {
+        const cw = f.contentWindow;   // same site, so the cabinet can follow the keys pressed inside the game
+        cw.addEventListener("keydown", (e) => keyToCab(e.code, true), true);
+        cw.addEventListener("keyup", (e) => keyToCab(e.code, false), true);
+        cw.addEventListener("blur", () => { for (const k in held) held[k] = 0; btnHeld[0] = btnHeld[1] = 0; });
+        cw.addEventListener("pointerdown", () => { btnHeld[0] = 1; }, true);
+        cw.addEventListener("pointerup", () => { btnHeld[0] = 0; }, true);
+        cw.focus();
+      } catch (e) {}
+      f.focus();
+    });
+  }
+  function leaveArcade() {
+    if (!arcadeOn) return false;
+    if (document.fullscreenElement || document.webkitFullscreenElement) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} }
+    arcadeOn = false; playing = null; clearScreen();
+    for (const k in held) held[k] = 0; btnHeld[0] = btnHeld[1] = 0;
+    gameBox.hidden = true; gameShield.hidden = true; gameBar.hidden = true; topBar.hidden = false; $("hint").hidden = false;
+    canvas.focus({ preventScroll: true });
     return true;
   }
-  playFn = playGame; exitFn = () => stopGame(false);
-  $("gameExit").addEventListener("click", () => stopGame(false));
+  playFn = (g) => enterArcade(g); exitFn = leaveArcade;
+  $("gameExit").addEventListener("click", leaveArcade);
+  $("gameMenu").addEventListener("click", showPicker);
   $("gameFull").addEventListener("click", () => {
     if (!playing) return;
     const el = gameFrame, rq = el && (el.requestFullscreen || el.webkitRequestFullscreen);
@@ -941,17 +1043,38 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     if (!ok) window.open(playing.url, "_blank", "noopener");   // phones that can't do it get the game's own page
   });
   window.addEventListener("message", (e) => {
-    if (e.origin === location.origin && e.data && e.data.type === "jaysstudio-exit-game") stopGame(false);
+    if (e.origin === location.origin && e.data && e.data.type === "jaysstudio-exit-game") showPicker();
   });
+  /* keys and scrolling in the picker */
+  window.addEventListener("keydown", (e) => {
+    if (!arcadeOn || gameFrame) return;
+    keyToCab(e.code, true);
+    const d = DIR[e.code];
+    if (d) { e.preventDefault(); if (!e.repeat) pick(d === "l" || d === "u" ? -1 : 1, d === "u" || d === "d" ? "y" : "x"); }
+    else if (e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space") { e.preventDefault(); if (!e.repeat) startGame(); }
+  });
+  window.addEventListener("keyup", (e) => { if (arcadeOn) keyToCab(e.code, false); });
+  let wheelAcc = 0, wheelAt = 0;
+  function onWheel(e) {
+    if (!arcadeOn || gameFrame) return;
+    e.preventDefault();
+    wheelAcc += e.deltaY || e.deltaX;
+    const now = performance.now();
+    if (Math.abs(wheelAcc) > 40 && now - wheelAt > 220) { pick(wheelAcc > 0 ? 1 : -1, "y"); wheelAcc = 0; wheelAt = now; }
+  }
+  gameShield.addEventListener("wheel", onWheel, { passive: false });
+  gameBox.addEventListener("wheel", onWheel, { passive: false });
+  /* a swipe across the picker on a phone works like scrolling */
+  let swX = null;
+  gameBox.addEventListener("touchstart", (e) => { if (!gameFrame && e.touches.length === 1) swX = e.touches[0].clientX; }, { passive: true });
+  gameBox.addEventListener("touchend", (e) => {
+    if (swX === null || gameFrame) return; const dx = e.changedTouches[0].clientX - swX; swX = null;
+    if (Math.abs(dx) > 40) pick(dx < 0 ? 1 : -1, "x");
+  });
+
   function updateGamePlayer(w, h) {
-    if (!playing) return;
-    if ((moveTo || lookTo) && !gameFrame) { gameBox.hidden = true; return; }
-    if (!gameFrame) {
-      const f = document.createElement("iframe");
-      f.src = playing.url; f.title = playing.name; f.allow = "fullscreen; autoplay; gamepad"; f.allowFullscreen = true;
-      gameBox.appendChild(f); gameFrame = f;
-      f.addEventListener("load", () => { try { f.contentWindow.focus(); } catch (e) {} f.focus(); });
-    }
+    if (!arcadeOn) return;
+    if ((moveTo || lookTo) && !gameBox.children.length) { gameBox.hidden = true; return; }
     arcadeScreen.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, behind = false;
     for (const c of gameCorners) {
@@ -963,6 +1086,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     gameBox.hidden = false; gameBox.style.visibility = behind || x1 - x0 < 40 ? "hidden" : "visible";
     gameBox.style.transform = "translate(" + x0.toFixed(1) + "px," + y0.toFixed(1) + "px)";
     gameBox.style.width = (x1 - x0).toFixed(1) + "px"; gameBox.style.height = (y1 - y0).toFixed(1) + "px";
+    gameBox.style.fontSize = Math.max(9, Math.min(18, (x1 - x0) / 26)).toFixed(1) + "px";
   }
 
   /* ---------- loop ---------- */
@@ -994,7 +1118,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     camera.rotation.set(state.pitch, state.yaw, 0);
     camera.updateMatrixWorld();
 
-    tickTV(dt);
+    tickTV(dt); tickArcade(dt);
     renderer.render(scene, camera);
 
     const w = canvas.clientWidth, h = canvas.clientHeight;

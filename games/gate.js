@@ -59,7 +59,7 @@
     root.querySelector("form").addEventListener("submit", submit);
     /* inside the 3D studio's arcade screen, this link closes the game there instead */
     if (window.parent !== window) {
-      var back = root.querySelector(".s a"); back.textContent = "Exit game";
+      var back = root.querySelector(".s a"); back.textContent = "Pick another game";
       back.addEventListener("click", function (e) {
         e.preventDefault(); try { window.parent.postMessage({ type: "jaysstudio-exit-game" }, location.origin); } catch (err) {}
       });
