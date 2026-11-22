@@ -73,6 +73,8 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: 
 .veil.paused { background: color-mix(in srgb, var(--ink) 70%, transparent); pointer-events: auto; }
 .veil:not(.over):not(.paused) button { display: none; }
 .veil.running { display: none; }
+.veil .tip { display: none; color: var(--turret); max-width: 34ch; margin-left: auto; margin-right: auto; }
+.veil.ready .tip { display: block; }
 
 button.go {
   font: 500 14px ui-monospace, Menlo, Consolas, monospace;
@@ -137,13 +139,14 @@ body.fs .stage { flex: 0 1 auto; width: min(100vw, calc((100dvh - 34px) * 16 / 9
       <div class="card">
         <h2 id="vt">Starflap</h2>
         <p id="vs">Press Space, click or tap to flap</p>
+        <p class="tip">There's no fire button. Fly into an orange turret and your ship fires on its own for 20 seconds.</p>
         <button class="go" id="vb" type="button">Play again</button>
       </div>
     </div>
   </div>
 
   <button class="flap" id="flapbtn" type="button">FLAP</button>
-  <p class="hint"><span class="keys">Space, W or Up arrow to flap. P pauses. M mutes.</span></p>
+  <p class="hint"><span class="keys">Space, W or Up arrow to flap. Grab an orange turret to shoot. P pauses. M mutes.</span></p>
 
   <ul class="rules">
     <li><i class="mk ship"></i><div><b>Flap to fly</b><span>Each flap kicks the ship upward. Gravity pulls it back down.</span></div></li>
