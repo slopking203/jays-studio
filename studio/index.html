@@ -69,8 +69,9 @@
     font: 600 13px/1 var(--font-body); color: var(--ink);
     background: var(--gold); border: 0; border-radius: 999px; padding: 8px 12px 8px 10px;
     cursor: pointer; box-shadow: 0 4px 18px rgba(0,0,0,0.45);
-    will-change: transform;
+    will-change: transform; opacity: 0; pointer-events: none; transition: opacity .25s ease;
   }
+  .tag.show, .tag:focus-visible { opacity: 1; pointer-events: auto; }
   .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 1.8s ease-in-out infinite; }
   .tag[hidden] { display: none; }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(80,139,63,0.7); } 50% { box-shadow: 0 0 0 6px rgba(80,139,63,0); } }
@@ -234,7 +235,7 @@
 </section>
 
 <div class="toast" id="toast" role="status" hidden></div>
-<div class="hud hint" id="hint"><p>Drag to look · Tap the floor to walk · Double-click an object or tap its gold label to use it</p></div>
+<div class="hud hint" id="hint"><p>Drag to look · Tap the floor to walk · Double-click an object to use it · Hover or keep looking at one to see its name</p></div>
 <div class="fallback" id="fallback" hidden><p>This browser could not start the 3D room. Use “All links” at the top right<span id="fallbackFlat" hidden>, or open the <a id="fallbackFlatLink" href="#" target="_blank" rel="noopener">2D version</a></span>.</p></div>
 
 <script src="/site-data.js"></script>
@@ -778,6 +779,8 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     else if (it.key === "ebook") { b.textContent = "Free ebook"; b.setAttribute("aria-label", "Free ebook: " + LINKS.ebook.title); }
     else { b.textContent = LINKS[it.key].title; b.setAttribute("aria-label", LINKS[it.key].title + ", " + LINKS[it.key].where); }
     b.addEventListener("click", () => select(it.key));
+    b.addEventListener("pointerenter", () => { it.overLabel = true; });
+    b.addEventListener("pointerleave", () => { it.overLabel = false; });
     labelsEl.appendChild(b); it.el = b;
   });
 
@@ -816,7 +819,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     const f = ray.intersectObject(floor)[0];
     return f ? { point: f.point } : null;
   }
-  let drag = null;
+  let drag = null, hoverKey = null;
   canvas.addEventListener("pointerdown", (e) => {
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false };
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
@@ -828,9 +831,10 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 8) { drag.moved = true; lookTo = null; canvas.classList.add("dragging"); }
       if (drag.moved) { state.yaw += dx * 0.0045; state.pitch = clamp(state.pitch + dy * 0.0045, -1.1, 1.1); }
     } else if (e.pointerType === "mouse") {
-      const p = pick(e); canvas.classList.toggle("hot", !!(p && p.key));
+      const p = pick(e); canvas.classList.toggle("hot", !!(p && p.key)); hoverKey = (p && p.key) || null;
     }
   });
+  canvas.addEventListener("pointerleave", () => { hoverKey = null; });
   function endDrag(e) {
     if (!drag || e.pointerId !== drag.id) return;
     const d = drag; drag = null; canvas.classList.remove("dragging");
@@ -903,7 +907,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   }
 
   /* ---------- TikTok over the phone screen ----------
-     Same idea as the TV: shows while the phone card is open and the camera has arrived.
+     Like the TV, the TikTok page stays on the phone screen whenever it is in view.
      TikTok's profile embed needs about 300px of width, so it is laid out at
      phone width and scaled down to the screen. */
   const phoneBox = $("phonePlayer"), phoneIn = $("phoneIn");
@@ -920,11 +924,25 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     f.referrerPolicy = "strict-origin-when-cross-origin";
     phoneIn.appendChild(f);
   }
+  /* the page stays on the phone all the time, like the TV. It only takes taps while the phone is
+     selected, and hides when something in the room stands between you and the phone. */
+  const phoneRay = new THREE.Raycaster(), phoneAt = new THREE.Vector3(), camAt = new THREE.Vector3();
+  let phoneBlocked = false, phoneCheck = 0;
+  function phoneHidden() {
+    if (performance.now() - phoneCheck < 200) return phoneBlocked;
+    phoneCheck = performance.now();
+    phoneScreen.getWorldPosition(phoneAt); camera.getWorldPosition(camAt);
+    const dist = camAt.distanceTo(phoneAt);
+    phoneRay.set(camAt, phoneAt.clone().sub(camAt).normalize()); phoneRay.far = dist - 0.04;
+    const hits = phoneRay.intersectObjects(scene.children, true);
+    phoneBlocked = hits.some((x) => x.object.visible && x.object.isMesh && x.object !== phoneScreen && !(x.object.material && x.object.material.transparent && x.object.material.opacity === 0));
+    return phoneBlocked;
+  }
   function updatePhonePlayer(w, h) {
-    const want = cardKey === "phone" && TT_HANDLE && phoneScreen;
-    if (!want) { if (phoneOn) { phoneIn.textContent = ""; phoneOn = false; } phoneBox.hidden = true; return; }
-    if ((moveTo || lookTo) && !phoneOn) { phoneBox.hidden = true; return; }
+    const want = TT_HANDLE && phoneScreen;
+    if (!want) { phoneBox.hidden = true; return; }
     if (!phoneOn) { loadTikTok(); phoneOn = true; }
+    phoneBox.style.pointerEvents = cardKey === "phone" ? "auto" : "none";
     phoneScreen.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, behind = false;
     for (const c of phoneCorners) {
@@ -932,7 +950,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       const sx = (pv.x * 0.5 + 0.5) * w, sy = (-pv.y * 0.5 + 0.5) * h;
       x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
     }
-    const off = behind || x1 < 0 || y1 < 0 || x0 > w || y0 > h;
+    const off = behind || x1 < 0 || y1 < 0 || x0 > w || y0 > h || x1 - x0 < 6 || phoneHidden();
     phoneBox.hidden = false; phoneBox.style.visibility = off ? "hidden" : "visible";
     if (!off) {
       const bw = x1 - x0, bh = y1 - y0, k = bw / 324;
@@ -1194,10 +1212,18 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     updateTVPlayer(w, h);
     updatePhonePlayer(w, h);
     updateGamePlayer(w, h);
+    /* the object nearest the middle of the view is the one being looked at */
+    let gazeAt = null, gazeBest = 0.12;
+    for (const it of interactives) { v.copy(it.anchor).project(camera);
+      const d2 = v.x * v.x + v.y * v.y; if (v.z < 1 && d2 < gazeBest) { gazeBest = d2; gazeAt = it; } }
     for (const it of interactives) {
       v.copy(it.anchor).project(camera);
       const visible = v.z < 1 && v.x > -1.15 && v.x < 1.15 && v.y > -1.15 && v.y < 1.15;
       if (it.el.hidden === visible) it.el.hidden = !visible;
+      /* a label shows while the mouse is on its object, or after you have looked straight at it for 5 seconds */
+      it.stare = visible && it === gazeAt ? (it.stare || 0) + dt : 0;
+      const show = visible && (hoverKey === it.key || it.overLabel || it.stare >= 5);
+      if (it.el.classList.contains("show") !== show) it.el.classList.toggle("show", show);
       if (visible) it.el.style.transform = "translate(" + ((v.x * 0.5 + 0.5) * w).toFixed(1) + "px," + ((-v.y * 0.5 + 0.5) * h).toFixed(1) + "px) translate(-50%,-100%)";
     }
     requestAnimationFrame(frame);

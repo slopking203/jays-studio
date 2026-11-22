@@ -149,7 +149,20 @@
 
   /* watch */
   .watch { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px; }
-  .player { padding: 0; overflow: hidden; background: #000; aspect-ratio: 16 / 9; align-self: start; }
+  .player { padding: 0; overflow: hidden; background: #000; align-self: start; display: flex; flex-direction: column; }
+  .reel { position: relative; aspect-ratio: 16 / 9; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .reel::-webkit-scrollbar { display: none; }
+  .slide { position: relative; flex: 0 0 100%; scroll-snap-align: start; }
+  .reelbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 10px 16px; color: var(--on-dark); }
+  .reelbar .now { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; min-width: 0; }
+  .reelbar .now small { font: 500 11px/1 var(--font-mono); letter-spacing: 0.08em; color: var(--on-dark-muted); }
+  .reelbar .dots { display: flex; gap: 6px; }
+  .reelbar .dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(243,241,234,0.3); }
+  .reelbar .dots i.on { background: var(--gold); }
+  .reelbar .arrows { display: flex; gap: 6px; }
+  .reelbar button { width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer; background: rgba(243,241,234,0.12); color: var(--on-dark); font-size: 15px; }
+  .reelbar button:hover:not(:disabled) { background: var(--gold); color: var(--ink); }
+  .reelbar button:disabled { opacity: 0.35; cursor: default; }
   .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .player .poster { position: absolute; inset: 0; display: grid; place-items: center; text-decoration: none; color: #fff; background: radial-gradient(circle at 30% 30%, #3b4a35, #111 70%); }
   .player .poster span { width: 74px; height: 74px; border-radius: 50%; background: var(--gold); display: grid; place-items: center; color: var(--ink); font-size: 26px; }
@@ -227,7 +240,7 @@
     .stage .chip { font-size: 11px; }
     .end { padding: 32px 18px 10px; }
   }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .game .shot img, .book .b3d { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { html, .reel { scroll-behavior: auto; } .game .shot img, .book .b3d { transition: none; } }
 </style>
 </head>
 <body>
@@ -292,7 +305,13 @@
     <p class="lede" id="watchBlurb"></p>
   </div>
   <div class="watch">
-    <div class="tile player" id="player"></div>
+    <div class="tile player" id="player">
+      <div class="reel" id="reel" aria-label="Channel players, scroll sideways for the next channel"></div>
+      <div class="reelbar" id="reelBar" hidden>
+        <span class="now"><span class="dots" id="reelDots"></span><span id="reelName"></span><small id="reelNum"></small></span>
+        <span class="arrows"><button type="button" id="reelPrev" aria-label="Previous channel">←</button><button type="button" id="reelNext" aria-label="Next channel">→</button></span>
+      </div>
+    </div>
     <div class="tile side">
       <p class="tag"><span>The TV</span><span>04</span></p>
       <ul class="chan" id="channels"></ul>
@@ -391,18 +410,37 @@ week.forEach(ship);   // then film it</pre>
 
   /* watch: newest uploads from the first channel with a player, then every channel and TikTok */
   $("watchBlurb").textContent = (L.tv && L.tv.blurb) || "";
-  const lead = (SITE.channels || []).find((c) => window.SITE_PLAYER && window.SITE_PLAYER(c));
-  if (lead && !window.JS_MOCKUP) {
-    const f = document.createElement("iframe");
-    f.src = window.SITE_PLAYER(lead); f.title = "Latest " + (lead.name || "channel") + " videos"; f.loading = "lazy";
-    f.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-    f.allowFullscreen = true; f.referrerPolicy = "strict-origin-when-cross-origin";
-    $("player").appendChild(f);
-  } else if (lead) {
-    const a = el("a", "poster"); linkOut(a, lead.url); a.setAttribute("aria-label", "Watch " + lead.name + " on YouTube");
-    a.appendChild(el("span", null, "▶")); $("player").appendChild(a);
+  /* one slide per channel; scroll or use the arrows to go from Slopking to Jay vs America */
+  const reelChans = (SITE.channels || []).filter((c) => window.SITE_PLAYER && window.SITE_PLAYER(c));
+  const reel = $("reel"), subBtn = $("subBtn");
+  reelChans.forEach((c) => {
+    const slide = el("div", "slide");
+    if (!window.JS_MOCKUP) {
+      const f = document.createElement("iframe");
+      f.src = window.SITE_PLAYER(c); f.title = "Latest " + (c.name || "channel") + " videos";
+      f.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+      f.allowFullscreen = true; f.referrerPolicy = "strict-origin-when-cross-origin";
+      slide.appendChild(f);
+    } else {
+      const a = el("a", "poster"); linkOut(a, c.url); a.setAttribute("aria-label", "Watch " + c.name + " on YouTube");
+      a.appendChild(el("span", null, "▶")); slide.appendChild(a);
+    }
+    reel.appendChild(slide); $("reelDots").appendChild(el("i"));
+  });
+  let reelAt = -1;
+  function showChan(i) {
+    if (i === reelAt || !reelChans[i]) return; reelAt = i;
+    const c = reelChans[i];
+    $("reelName").textContent = c.name; $("reelNum").textContent = (i + 1) + " / " + reelChans.length;
+    [...$("reelDots").children].forEach((d, j) => d.classList.toggle("on", j === i));
+    $("reelPrev").disabled = i === 0; $("reelNext").disabled = i === reelChans.length - 1;
+    if (c.subscribe) { subBtn.href = c.subscribe; subBtn.textContent = "Subscribe to " + c.name + " ↗"; subBtn.hidden = false; } else subBtn.hidden = true;
   }
-  if (lead && lead.subscribe) { const s = $("subBtn"); s.href = lead.subscribe; s.textContent = "Subscribe to " + lead.name + " ↗"; s.hidden = false; }
+  function goChan(i) { i = Math.max(0, Math.min(reelChans.length - 1, i)); reel.scrollLeft = i * reel.clientWidth; showChan(i); }
+  reel.addEventListener("scroll", () => { if (reel.clientWidth) showChan(Math.round(reel.scrollLeft / reel.clientWidth)); }, { passive: true });
+  $("reelPrev").addEventListener("click", () => goChan(reelAt - 1));
+  $("reelNext").addEventListener("click", () => goChan(reelAt + 1));
+  if (reelChans.length) { showChan(0); $("reelBar").hidden = reelChans.length < 2; }
   (SITE.channels || []).forEach((c) => {
     const li = el("li"), a = el(c.url ? "a" : "div");
     if (c.url) linkOut(a, c.url);
