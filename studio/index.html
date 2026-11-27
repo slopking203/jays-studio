@@ -9,9 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  /* Layout idea: the room is the page. A full-bleed 3D studio at night, with a quiet
+  /* Layout idea: the room is the page. A full-bleed 3D studio in daylight, with a quiet
      HUD on top: wordmark top-left, link list top-right, a bottom sheet for the object you tapped.
-     Single theme by choice: the studio is always lit by its own lamp. */
+     The room is a baked model (model/): its lighting is painted into its textures, so it draws
+     fast on phones. Full and Lite are the same room at two weights. */
   :root {
     color-scheme: dark;
     --charcoal: #2E2E2E;
@@ -55,13 +56,15 @@
   .btn:hover { border-color: var(--gold); }
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-  /* Look switcher: original, pencil sketch or anime. The room itself never changes, only how it is drawn. */
   .topr { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-  .looks { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: rgba(27,28,26,0.72); border: 1px solid rgba(243,239,228,0.28);
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-  .looks button { font: 600 13px/1 var(--font-body); color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 8px 11px; cursor: pointer; }
-  .looks button:hover { color: var(--paper); }
-  .looks button[aria-pressed="true"] { background: var(--gold); color: var(--ink); }
+  .top > div:first-child { background: rgba(27,28,26,0.72); border-radius: 12px; padding: 9px 12px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); pointer-events: none; }
+  .hint p { display: inline-block; background: rgba(27,28,26,0.72); border-radius: 999px; padding: 7px 14px; color: var(--paper); }
+  .loading { position: fixed; inset: 0; z-index: 6; display: grid; place-content: center; gap: 14px; text-align: center; background: var(--ink); color: var(--muted); transition: opacity .4s ease; }
+  .loading[hidden] { display: none; }
+  .loading.out { opacity: 0; pointer-events: none; }
+  .loading p { margin: 0; font-size: 14px; }
+  .loading .bar { width: min(240px, 60vw); height: 4px; border-radius: 4px; background: rgba(243,239,228,0.16); overflow: hidden; margin: 0 auto; }
+  .loading .bar i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .2s ease; }
   .hint {
     left: 0; right: 0; bottom: 14px; text-align: center; padding: 0 16px;
     font-size: 13px; color: var(--muted); text-shadow: 0 1px 6px rgba(0,0,0,0.8);
@@ -217,14 +220,10 @@
 <header class="hud top">
   <div>
     <h1 class="wordmark">Jay's <span>Studio</span></h1>
-    <p class="tagline">Walk around. Everything glowing is something I made.</p>
+    <p class="tagline">Walk around. Tap anything with a screen.</p>
   </div>
   <div class="topr">
-    <div class="looks" id="looks" role="group" aria-label="Look">
-      <button type="button" data-look="original" aria-pressed="true">Original</button>
-      <button type="button" data-look="pencil" aria-pressed="false">Pencil</button>
-      <button type="button" data-look="anime" aria-pressed="false">Anime</button>
-    </div>
+    <button class="btn" id="qBtn" type="button" title="Lite is a lighter version of the room for slower phones and connections">Quality</button>
     <button class="btn" id="listBtn" type="button" aria-expanded="false" aria-controls="panel">All links</button>
   </div>
 </header>
@@ -248,12 +247,15 @@
   </form>
 </section>
 
+<div class="loading" id="loading"><p id="loadMsg">Opening the studio…</p><div class="bar"><i id="loadBar"></i></div></div>
 <div class="toast" id="toast" role="status" hidden></div>
-<div class="hud hint" id="hint"><p>Drag to look · Tap the floor to walk · Double-click an object to use it · Hover or keep looking at one to see its name</p></div>
+<div class="hud hint" id="hint"><p>Drag to look · Tap the floor to walk · Tap an object to open it</p></div>
 <div class="fallback" id="fallback" hidden><p>This browser could not start the 3D room. Use “All links” at the top right<span id="fallbackFlat" hidden>, or open the <a id="fallbackFlatLink" href="#" target="_blank" rel="noopener">2D version</a></span>.</p></div>
 
 <script src="/site-data.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
 <script>
 /* ============================================================
    Content lives in site-data.js, shared with the 2D site.
@@ -262,7 +264,7 @@
 const SITE = window.SITE || { links: {}, channels: [], ebook: {}, versions: {} };
 const EBOOK = SITE.ebook || {};
 const LINKS = Object.assign(
-  { ebook: { where: "The book stand", title: EBOOK.title || "Free ebook", cta: EBOOK.cta || "Get the ebook", url: EBOOK.signupUrl || "", blurb: EBOOK.pitch || "", signup: true } },
+  { ebook: { where: "The book on the sofa table", title: EBOOK.title || "Free ebook", cta: EBOOK.cta || "Get the ebook", url: EBOOK.signupUrl || "", blurb: EBOOK.pitch || "", signup: true } },
   JSON.parse(JSON.stringify(SITE.links || {}))
 );
 const CHANNELS = (SITE.channels && SITE.channels.length) ? SITE.channels
@@ -346,174 +348,132 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (exitFn && exitFn()) return; closeCard(); panel.hidden = true; } });
   let exitFn = null;
 
-  if (!window.THREE) { $("fallback").hidden = false; return; }
+
+  if (!window.THREE || !THREE.GLTFLoader) { $("loading").hidden = true; $("fallback").hidden = false; return; }
+
+  /* ---------- quality: Full or Lite ----------
+     Same room, two weights. Lite loads a low-poly model with half-size textures and draws fewer
+     pixels. It is picked automatically on phones that report little memory, few cores or a
+     data-saver/slow connection; the Quality button overrides that and remembers the choice. */
+  const Q_KEY = "jaysstudio_quality";
+  function autoQuality() {
+    const n = navigator, c = n.connection || {};
+    if (c.saveData || /(^|-)(2g|3g)$/.test(c.effectiveType || "")) return "lite";
+    if (n.deviceMemory && n.deviceMemory <= 4) return "lite";
+    if (n.hardwareConcurrency && n.hardwareConcurrency <= 4) return "lite";
+    return "full";
+  }
+  let quality = null;
+  try { quality = new URLSearchParams(location.search).get("quality"); } catch (e) {}
+  if (quality !== "lite" && quality !== "full") { try { quality = localStorage.getItem(Q_KEY); } catch (e) {} }
+  if (quality !== "lite" && quality !== "full") quality = autoQuality();
+  const LITE = quality === "lite";
+  const qBtn = $("qBtn");
+  qBtn.textContent = "Quality: " + (LITE ? "Lite" : "Full");
+  qBtn.setAttribute("aria-label", "Quality is " + (LITE ? "Lite" : "Full") + ". Switch to " + (LITE ? "Full" : "Lite"));
+  qBtn.addEventListener("click", () => {
+    const next = LITE ? "full" : "lite";
+    try { localStorage.setItem(Q_KEY, next); } catch (e) {}
+    let u = location.pathname + "?quality=" + next;
+    try { const q = new URLSearchParams(location.search); q.set("quality", next); u = location.pathname + "?" + q.toString(); } catch (e) {}
+    location.replace(u);
+  });
 
   /* ---------- renderer ---------- */
   const canvas = $("scene");
   let renderer;
-  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
-  catch (err) { $("fallback").hidden = false; return; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: !LITE, powerPreference: "high-performance" }); }
+  catch (err) { $("loading").hidden = true; $("fallback").hidden = false; return; }
+  let pixelRatio = Math.min(window.devicePixelRatio || 1, LITE ? 1.25 : 2);
+  renderer.setPixelRatio(pixelRatio);
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.NoToneMapping;          // the light is already in the textures
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x151614);
+  scene.background = new THREE.Color(0xdfe7ee);
   const camera = new THREE.PerspectiveCamera(68, 1, 0.05, 60);
   camera.rotation.order = "YXZ";
 
-  const ROOM = { w: 8, d: 6, h: 3 };          // metres
-  const EYE = 1.6;
-  const BOUNDS = { x: 3.5, z: 2.5 };
+  const EYE = 1.55;
+  /* The room: x runs 0..6 m left to right, z runs 0 (front wall, windows) to -5.2 (green wall). */
+  const BOUNDS = { x0: 0.3, x1: 5.7, z0: -4.9, z1: -0.3 };
+  const C = { charcoal: 0x2E2E2E, green: 0x508B3F, gold: 0xFFC857, paper: 0xf3efe4 };
 
-  /* ---------- helpers ---------- */
-  const mat = (color, o) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.85, metalness: 0.0 }, o || {}));
-  function add(geo, material, x, y, z, parent) {
-    const m = new THREE.Mesh(geo, material); m.position.set(x, y, z);
-    m.castShadow = true; m.receiveShadow = true; (parent || scene).add(m); return m;
-  }
-  const box = (w, h, d, material, x, y, z, parent) => add(new THREE.BoxGeometry(w, h, d), material, x, y, z, parent);
-  const cyl = (rt, rb, h, material, x, y, z, parent, seg) => add(new THREE.CylinderGeometry(rt, rb, h, seg || 24), material, x, y, z, parent);
   function canvasTex(w, h, draw) {
     const c = document.createElement("canvas"); c.width = w; c.height = h;
     draw(c.getContext("2d"), w, h);
-    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t;
+    return liveTex(c);
   }
-  const screenMat = (tex) => new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
-  function screen(w, h, tex, x, y, z, parent) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), screenMat(tex)); m.position.set(x, y, z); (parent || scene).add(m); return m;
+  function liveTex(c) {                                   // a picture painted by this page, for a screen in the model
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; t.flipY = false; return t;
   }
+  const screenMat = (tex) => new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+  const V = (p) => new THREE.Vector3(p[0], p[1], p[2]);
+  const centre = (pts) => pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
 
-  const C = { charcoal: 0x2E2E2E, green: 0x508B3F, gold: 0xFFC857, paper: 0xf3efe4, wood: 0x8a6a48, dark: 0x1c1c1c };
+  /* ---------- load the model ---------- */
+  const MODEL = "model/";
+  const SHEETS = ["floor", "shell", "big", "props"];
+  let got = 0;
+  const step = () => { got++; $("loadBar").style.width = Math.round(100 * got / (SHEETS.length + 2)) + "%"; };
+  const texLoader = new THREE.TextureLoader();
+  const sheet = (name) => new Promise((res, rej) => texLoader.load(MODEL + name + (LITE ? "-1k" : "-2k") + ".jpg", (t) => {
+    t.flipY = false; t.encoding = THREE.sRGBEncoding; t.anisotropy = Math.min(LITE ? 2 : 8, renderer.capabilities.getMaxAnisotropy()); step(); res(t);
+  }, undefined, rej));
+  const gltfLoader = new THREE.GLTFLoader();
+  if (window.MeshoptDecoder) gltfLoader.setMeshoptDecoder(window.MeshoptDecoder);
+  Promise.all([
+    new Promise((res, rej) => gltfLoader.load(MODEL + "studio-" + quality + ".glb", (g) => { step(); res(g); }, undefined, rej)),
+    fetch(MODEL + "meta.json").then((r) => { if (!r.ok) throw new Error("meta"); step(); return r.json(); }),
+    Promise.all(SHEETS.map(sheet))
+  ]).then((r) => {
+    const T = {}; SHEETS.forEach((n, i) => { T[n] = r[2][i]; });
+    boot(r[0], r[1], T);
+    const ld = $("loading"); ld.classList.add("out"); setTimeout(() => { ld.hidden = true; }, 450);
+  }).catch((err) => { $("loading").hidden = true; $("fallback").hidden = false; if (window.console) console.error(err); });
 
-  /* ---------- room shell ---------- */
-  const floorTex = canvasTex(1024, 1024, (g, w, h) => {
-    g.fillStyle = "#7b5d40"; g.fillRect(0, 0, w, h);
-    const rows = 12, ph = h / rows;
-    for (let r = 0; r < rows; r++) {
-      let x = (r % 2) * -180;
-      while (x < w) {
-        const pw = 300 + ((r * 97 + x * 13) % 160);
-        const s = 40 + ((r * 53 + x * 7) % 16);
-        g.fillStyle = "hsl(28," + (30 + (r * 5) % 10) + "%," + s * 0.82 + "%)";
-        g.fillRect(x + 2, r * ph + 2, pw - 4, ph - 4);
-        x += pw;
-      }
-    }
+  function boot(gltf, meta, T) {
+  const dyn = {};
+  scene.add(gltf.scene);
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    const m = o.name.match(/^(?:full|lite)_([a-z]+)/);
+    if (m && T[m[1]]) { o.material = new THREE.MeshBasicMaterial({ map: T[m[1]] }); return; }
+    dyn[o.name] = o;
   });
-  floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(2, 1.5);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7 }));
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const S = {};                                           // each live screen's four corners in the room
+  Object.keys(meta.screens).forEach((k) => { S[k] = meta.screens[k].map(V); });
+  const P = meta.pieces;
 
-  const wallMat = mat(0x3a3a38, { roughness: 0.95 });
-  const accentMat = mat(0x3f6f33, { roughness: 0.95 });
-  function wall(w, material, x, z, ry) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, ROOM.h), material);
-    m.position.set(x, ROOM.h / 2, z); m.rotation.y = ry; m.receiveShadow = true; scene.add(m);
-  }
-  wall(ROOM.w, accentMat, 0, -ROOM.d / 2, 0);                 // back wall: the green one
-  wall(ROOM.w, wallMat, 0, ROOM.d / 2, Math.PI);
-  wall(ROOM.d, wallMat, -ROOM.w / 2, 0, Math.PI / 2);
-  wall(ROOM.d, wallMat, ROOM.w / 2, 0, -Math.PI / 2);
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d), mat(0x262624));
-  ceil.rotation.x = Math.PI / 2; ceil.position.y = ROOM.h; scene.add(ceil);
-  // skirting
-  const skirt = mat(0x1f1f1e);
-  box(ROOM.w, 0.1, 0.03, skirt, 0, 0.05, -ROOM.d / 2 + 0.015);
-  box(ROOM.w, 0.1, 0.03, skirt, 0, 0.05, ROOM.d / 2 - 0.015);
-  box(0.03, 0.1, ROOM.d, skirt, -ROOM.w / 2 + 0.015, 0.05, 0);
-  box(0.03, 0.1, ROOM.d, skirt, ROOM.w / 2 - 0.015, 0.05, 0);
-
-  /* ---------- lights ---------- */
-  scene.add(new THREE.AmbientLight(0xc9cfdd, 0.17));
-  scene.add(new THREE.HemisphereLight(0x9fb0cc, 0x3a2c1e, 0.15));
-  const key = new THREE.SpotLight(0xfff1d6, 0.38, 12, 1.25, 1, 1.2);
-  key.position.set(0.2, 2.95, 0.4); key.target.position.set(0, 0, -0.4);
-  key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0015; key.shadow.radius = 4;
-  scene.add(key, key.target);
-
-  /* ---------- window (left wall) ---------- */
-  const winTex = canvasTex(512, 400, (g, w, h) => {
+  /* windows: soft daylight behind the frames */
+  const skyTex = canvasTex(64, 256, (g, w, h) => {
     const grd = g.createLinearGradient(0, 0, 0, h);
-    grd.addColorStop(0, "#0d1730"); grd.addColorStop(0.6, "#2b3d6b"); grd.addColorStop(1, "#c4795a");
+    grd.addColorStop(0, "#bcd9f2"); grd.addColorStop(0.62, "#eef4f6"); grd.addColorStop(0.63, "#c9d6b4"); grd.addColorStop(1, "#9db58a");
     g.fillStyle = grd; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 60; i++) { g.fillStyle = "rgba(255,255,255," + (0.3 + (i % 5) * 0.12) + ")"; g.fillRect((i * 97) % w, (i * 53) % (h * 0.5), 2, 2); }
-    let x = 0, i = 0;
-    while (x < w) {
-      const bw = 34 + (i * 29) % 46, bh = 70 + (i * 61) % 150;
-      g.fillStyle = "#121420"; g.fillRect(x, h - bh, bw, bh);
-      for (let yy = h - bh + 8; yy < h - 6; yy += 14) for (let xx = x + 5; xx < x + bw - 6; xx += 10)
-        if ((xx * 7 + yy * 3 + i) % 5 < 2) { g.fillStyle = "#FFC857"; g.fillRect(xx, yy, 4, 6); }
-      x += bw + 2; i++;
-    }
   });
-  const win = screen(1.9, 1.45, winTex, -ROOM.w / 2 + 0.02, 1.65, 1.0); win.rotation.y = Math.PI / 2;
-  const frameM = mat(0x1d1d1c);
-  box(0.06, 1.55, 0.06, frameM, -3.96, 1.65, 0.03); box(0.06, 1.55, 0.06, frameM, -3.96, 1.65, 1.97);
-  box(0.06, 0.06, 2.0, frameM, -3.96, 2.4, 1.0);   box(0.1, 0.06, 2.06, frameM, -3.94, 0.9, 1.0);
-  box(0.04, 1.5, 0.04, frameM, -3.96, 1.65, 1.0);
-  const moon = new THREE.PointLight(0x7f9be0, 0.4, 7, 2); moon.position.set(-3.3, 1.8, 1.0); scene.add(moon);
-
-  /* ---------- bed (back-left corner) ---------- */
-  box(1.7, 0.3, 2.2, mat(0x4b3a2a), -3.05, 0.15, -1.8);
-  box(1.6, 0.22, 2.1, mat(0xe9e4d6), -3.05, 0.41, -1.8);
-  box(1.64, 0.1, 1.35, mat(C.green), -3.05, 0.54, -1.42);
-  box(0.6, 0.12, 0.38, mat(0xf6f2e8), -3.45, 0.58, -2.6); box(0.6, 0.12, 0.38, mat(0xf6f2e8), -2.65, 0.58, -2.6);
-  box(1.8, 1.0, 0.08, mat(0x3b2e22), -3.05, 0.6, -2.94);
-
-  /* ---------- lounge: rug, sofa, coffee table ---------- */
-  const rug = new THREE.Mesh(new THREE.CircleGeometry(1.55, 48), mat(0x2c3a2a, { roughness: 1 }));
-  rug.rotation.x = -Math.PI / 2; rug.position.set(-0.4, 0.006, -1.3); rug.receiveShadow = true; scene.add(rug);
-  const rugRing = new THREE.Mesh(new THREE.RingGeometry(1.38, 1.44, 48), mat(C.gold, { roughness: 1 }));
-  rugRing.rotation.x = -Math.PI / 2; rugRing.position.set(-0.4, 0.008, -1.3); scene.add(rugRing);
-
-  const sofaM = mat(0x55524c), sofa = new THREE.Group(); sofa.position.set(-0.4, 0, -0.35); scene.add(sofa);
-  box(2.1, 0.42, 0.9, sofaM, 0, 0.21, 0, sofa);
-  box(2.1, 0.5, 0.22, sofaM, 0, 0.62, 0.34, sofa);
-  box(0.2, 0.62, 0.9, sofaM, -1.05, 0.31, 0, sofa); box(0.2, 0.62, 0.9, sofaM, 1.05, 0.31, 0, sofa);
-  box(0.42, 0.34, 0.12, mat(C.gold), -0.6, 0.6, 0.16, sofa).rotation.x = 0.25;
-  box(0.42, 0.34, 0.12, mat(C.green), 0.6, 0.6, 0.16, sofa).rotation.x = 0.25;
-
-  cyl(0.42, 0.42, 0.05, mat(C.wood, { roughness: 0.5 }), -0.4, 0.36, -1.45);
-  cyl(0.04, 0.2, 0.34, mat(0x1d1d1c), -0.4, 0.17, -1.45);
-  cyl(0.05, 0.04, 0.09, mat(0xf3efe4), -0.25, 0.43, -1.4);                    // mug
-
-  /* ---------- floor lamp ---------- */
-  cyl(0.16, 0.18, 0.03, mat(0x1d1d1c), 1.05, 0.015, -0.2);
-  cyl(0.015, 0.015, 1.5, mat(0x1d1d1c), 1.05, 0.75, -0.2);
-  const shade = cyl(0.14, 0.24, 0.3, new THREE.MeshStandardMaterial({ color: C.gold, emissive: C.gold, emissiveIntensity: 0.55, roughness: 0.6 }), 1.05, 1.6, -0.2);
-  shade.castShadow = false;
-  const lamp = new THREE.PointLight(0xFFC857, 0.85, 8, 2); lamp.position.set(1.05, 1.5, -0.2); scene.add(lamp);
-
-  /* ---------- plant ---------- */
-  cyl(0.17, 0.13, 0.32, mat(0xb98a5e), 1.0, 0.16, -2.6);
-  const leafM = mat(0x3f7a35);
-  [[0, 0.75, 0, 0.3], [0.14, 0.6, 0.08, 0.22], [-0.13, 0.62, -0.06, 0.22], [0.02, 0.98, -0.02, 0.2]].forEach((p) =>
-    add(new THREE.IcosahedronGeometry(p[3], 0), leafM, 1.0 + p[0], p[1], -2.6 + p[2]));
-  cyl(0.015, 0.02, 0.4, mat(0x4b3a2a), 1.0, 0.45, -2.6);
+  Object.keys(dyn).forEach((k) => { if (/^pane/.test(k)) dyn[k].material = screenMat(skyTex); });
 
   /* ============================================================
      INTERACTIVE OBJECTS
+     The model is one baked piece, so each clickable thing gets an invisible box to tap,
+     a spot to stand (view) and a point to look at (look).
      ============================================================ */
   let chIndex = 0, setChannel = function () {}, tickTV = function () {};
-  const interactives = [];   // { key, group, anchor: Vector3, view: Vector3, look: Vector3 }
-  function register(key, group, anchor, view, look) {
-    group.traverse((o) => { o.userData.key = key; });
-    interactives.push({ key, group, anchor: new THREE.Vector3(...anchor), view: new THREE.Vector3(...view), look: new THREE.Vector3(...look) });
+  const interactives = [];   // { key, hit, anchor, view, look }
+  function register(key, piece, pad, view, look) {
+    const b = P[piece], lo = V(b.min), hi = V(b.max);
+    const size = hi.clone().sub(lo).addScalar(pad * 2);
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshBasicMaterial());
+    hit.position.copy(lo).add(hi).multiplyScalar(0.5); hit.visible = false; hit.userData.key = key; scene.add(hit);
+    hit.updateMatrixWorld(true);
+    interactives.push({ key, hit, anchor: new THREE.Vector3((lo.x + hi.x) / 2, hi.y + 0.12, (lo.z + hi.z) / 2), view: V(view), look: V(look) });
   }
 
   /* TV -> YouTube */
   (function () {
-    const g = new THREE.Group(); scene.add(g);
-    box(2.2, 0.42, 0.45, mat(0x4b3a2a), -0.4, 0.21, -2.72, g);
-    box(0.5, 0.02, 0.35, mat(0x1d1d1c), -1.0, 0.43, -2.72, g);
-    box(1.72, 0.98, 0.06, mat(0x111111, { roughness: 0.4 }), -0.4, 1.35, -2.95, g);
     const tvC = document.createElement("canvas"); tvC.width = 640; tvC.height = 360;
     const c = tvC.getContext("2d"), w = 640, h = 360;
-    const tex = new THREE.CanvasTexture(tvC); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+    const tex = liveTex(tvC);
     const nz = document.createElement("canvas"); nz.width = 96; nz.height = 54;
     const nctx = nz.getContext("2d"), nimg = nctx.createImageData(96, 54);
     function badge(i) {
@@ -601,58 +561,17 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       staticClock += dt; if (staticClock > 0.09) { staticClock = 0; drawTV(); }
     };
     drawTV();
-    screen(1.64, 0.9, tex, -0.4, 1.35, -2.915, g);
-    const glow = new THREE.PointLight(0x9fe08a, 0.5, 4.5, 2); glow.position.set(-0.4, 1.35, -2.3); scene.add(glow);
-    register("tv", g, [-0.4, 1.98, -2.9], [-0.4, EYE, -0.45], [-0.4, 1.32, -2.9]);
+    dyn.screen_tv.material = screenMat(tex);
+    const c0 = centre(S.screen_tv.map((p) => p.clone()));
+    register("tv", "TV", 0.03, [2.55, EYE, c0.z], [c0.x, c0.y, c0.z]);
   })();
 
   /* Remote on the coffee table -> next TV channel */
-  (function () {
-    const g = new THREE.Group(); g.position.set(-0.62, 0.385, -1.28); g.rotation.y = 0.5; scene.add(g);
-    box(0.06, 0.022, 0.2, mat(0x111111, { roughness: 0.45 }), 0, 0.011, 0, g);
-    const btn = cyl(0.014, 0.014, 0.006, new THREE.MeshStandardMaterial({ color: 0xd94b3d, emissive: 0xd94b3d, emissiveIntensity: 0.8 }), 0, 0.025, -0.07, g, 12);
-    btn.castShadow = false;
-    [[-0.014, -0.02], [0.014, -0.02], [-0.014, 0.01], [0.014, 0.01], [0, 0.045]].forEach((p) =>
-      cyl(0.008, 0.008, 0.005, mat(C.gold, { emissive: C.gold, emissiveIntensity: 0.35 }), p[0], 0.0245, p[1], g, 10).castShadow = false);
-    // generous invisible tap target: the remote itself is thumb-sized
-    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.42), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-    hit.position.y = 0.07; g.add(hit);
-    register("remote", g, [-0.62, 0.58, -1.28], [0, 0, 0], [0, 0, 0]);
-  })();
+  register("remote", "Remote", 0.1, [0, 0, 0], [0, 0, 0]);
 
-  /* Phone on a ring-light tripod -> TikTok */
-  let phoneScreen = null;                                  // the screen mesh, for placing TikTok over it
+  /* Phone on the ring-light tripod -> TikTok */
+  const phoneScreen = dyn.screen_phone, phoneCenter = centre(S.screen_phone.map((p) => p.clone()));
   (function () {
-    // Faces the spot you stand on when you tap it.
-    const g = new THREE.Group(); g.position.set(-2.75, 0, 1.75); g.rotation.y = 2.0; scene.add(g);
-    const metal = mat(0x1a1a1a, { roughness: 0.4, metalness: 0.5 });
-    const up = new THREE.Vector3(0, 1, 0);
-    function stick(ax, ay, az, bx, by, bz, r) {           // a rod between two points
-      const A = new THREE.Vector3(ax, ay, az), B = new THREE.Vector3(bx, by, bz), d = B.clone().sub(A);
-      const m = cyl(r, r, d.length(), metal, 0, 0, 0, g, 10);
-      m.position.copy(A).add(B).multiplyScalar(0.5);
-      m.quaternion.setFromUnitVectors(up, d.normalize());
-      return m;
-    }
-    const HUB = 0.72, RING = 1.5, R = 0.26;
-    for (let i = 0; i < 3; i++) {                           // three legs splayed from one hub
-      const a = (i / 3) * Math.PI * 2 + Math.PI / 3, fx = Math.sin(a) * 0.36, fz = Math.cos(a) * 0.36;
-      stick(0, HUB, 0, fx, 0.01, fz, 0.013);
-      stick(0, HUB - 0.3, 0, fx * 0.45, HUB * 0.56, fz * 0.45, 0.007);   // brace
-      cyl(0.02, 0.022, 0.02, mat(0x0d0d0d), fx, 0.01, fz, g, 10);         // rubber foot
-    }
-    cyl(0.03, 0.03, 0.07, metal, 0, HUB, 0, g, 12);                        // hub collar
-    stick(0, HUB - 0.3, 0, 0, RING - R, 0, 0.012);                         // centre column up to the ring
-    cyl(0.022, 0.022, 0.05, metal, 0, RING - R - 0.02, 0, g, 12);
-    const ring = add(new THREE.TorusGeometry(R, 0.03, 14, 56), new THREE.MeshStandardMaterial({ color: 0xfff3da, emissive: 0xfff0cf, emissiveIntensity: 1.1 }), 0, RING, 0, g);
-    ring.castShadow = false;
-    add(new THREE.TorusGeometry(R, 0.034, 14, 56), metal, 0, RING, -0.012, g);   // dark back housing
-    // phone clamp: a short post from the bottom of the ring, with jaws above and below the phone
-    stick(0, RING - R, 0.02, 0, RING - 0.13, 0.02, 0.008);
-    box(0.07, 0.014, 0.03, metal, 0, RING - 0.122, 0.02, g);
-    box(0.07, 0.014, 0.03, metal, 0, RING + 0.122, 0.02, g);
-    stick(0, RING - 0.122, 0.004, 0, RING + 0.122, 0.004, 0.006);
-    box(0.108, 0.226, 0.014, mat(0x0d0d0d, { roughness: 0.3 }), 0, RING, 0.02, g);
     const tex = canvasTex(180, 380, (c, w, h) => {
       c.fillStyle = "#111"; c.fillRect(0, 0, w, h);
       c.fillStyle = "#508B3F"; c.fillRect(0, 0, w, h * 0.62);
@@ -661,29 +580,29 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.fillStyle = "#f3efe4"; c.fillRect(16, h * 0.7, w - 70, 12); c.fillRect(16, h * 0.78, w - 100, 12);
       c.fillStyle = "#FFC857"; for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(w - 24, h * 0.68 + i * 36, 11, 0, Math.PI * 2); c.fill(); }
     });
-    phoneScreen = screen(0.098, 0.214, tex, 0, RING, 0.028, g);
-    const l = new THREE.PointLight(0xfff0cf, 0.45, 3.5, 2); l.position.set(-2.3, 1.5, 1.55); scene.add(l);
+    phoneScreen.material = screenMat(tex);
+    const a = S.screen_phone, n = a[1].clone().sub(a[0]).cross(a[3].clone().sub(a[0])).normalize();
     // tapping it walks you right up to the phone, so TikTok on its screen is big enough to use
-    register("phone", g, [-2.75, 1.98, 1.75], [-2.43, EYE, 1.6], [-2.725, 1.5, 1.738]);
+    register("phone", "Tripod", 0.0, [phoneCenter.x + n.x * 0.42, EYE, phoneCenter.z + n.z * 0.42], [phoneCenter.x, phoneCenter.y, phoneCenter.z]);
   })();
 
   /* Arcade cabinet -> games */
-  let arcadeScreen = null, arcadeStick = null, arcadeBtns = [], cabCanvas = null, cabTex = null;   // screen mesh, joystick pivot and buttons, for playing on the cabinet
+  const arcadeScreen = dyn.screen_arcade;
+  let arcadeStick = null, arcadeBtns = [], cabCanvas = null, cabTex = null;   // joystick pivot and buttons, for playing on the cabinet
   (function () {
-    const g = new THREE.Group(); g.position.set(3.25, 0, -2.4); g.rotation.y = -0.64; scene.add(g);
-    const body = mat(0x1f1f1f, { roughness: 0.6 });
-    box(0.78, 0.95, 0.74, body, 0, 0.475, 0, g);
-    box(0.78, 0.95, 0.5, body, 0, 1.42, -0.12, g);
-    box(0.82, 0.16, 0.56, mat(C.gold, { emissive: C.gold, emissiveIntensity: 0.55 }), 0, 1.93, -0.09, g);
-    const panelM = box(0.78, 0.06, 0.34, mat(0x2b2b2b), 0, 0.97, 0.22, g); panelM.rotation.x = 0.18;
-    // the joystick sits on a pivot so it can lean, and the two buttons can sink when pressed
-    arcadeStick = new THREE.Group(); arcadeStick.position.set(-0.2, 0.995, 0.22); g.add(arcadeStick);
-    cyl(0.012, 0.012, 0.09, mat(0x999999), 0, 0.045, 0, arcadeStick, 8);
-    add(new THREE.SphereGeometry(0.03, 12, 12), mat(0xd94b3d), 0, 0.095, 0, arcadeStick);
-    arcadeBtns = [cyl(0.028, 0.028, 0.02, mat(C.gold), 0.08, 1.01, 0.24, g, 16), cyl(0.028, 0.028, 0.02, mat(C.green), 0.2, 1.01, 0.22, g, 16)];
-    box(0.04, 1.9, 0.78, mat(C.green), -0.41, 0.95, -0.0, g); box(0.04, 1.9, 0.78, mat(C.green), 0.41, 0.95, -0.0, g);
-    cabCanvas = document.createElement("canvas"); cabCanvas.width = 512; cabCanvas.height = 460;
-    cabTex = new THREE.CanvasTexture(cabCanvas); cabTex.encoding = THREE.sRGBEncoding; cabTex.anisotropy = 4;
+    const deckN = new THREE.Vector3(0, 0.927, 0.375);                          // the control deck leans toward you
+    if (dyn.move_stick) {
+      dyn.move_stick.material = new THREE.MeshBasicMaterial({ color: 0xe9b64c });
+      arcadeStick = new THREE.Group(); arcadeStick.position.copy(V(meta.movers.stick)).addScaledVector(deckN, -0.045); scene.add(arcadeStick);
+      arcadeStick.updateMatrixWorld(true); arcadeStick.attach(dyn.move_stick);
+    }
+    for (let i = 0; i < 6; i++) {
+      const b = dyn["move_btn" + i]; if (!b) continue;
+      b.material = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xf2bd52 : 0x4c8a3b });
+      arcadeBtns.push({ mesh: b, rest: b.position.clone(), n: deckN, down: 0 });
+    }
+    cabCanvas = document.createElement("canvas"); cabCanvas.width = 512; cabCanvas.height = 414;
+    cabTex = liveTex(cabCanvas);
     const tex = cabTex;
     (function (c, w, h) {                                    // drawn until the title screen image loads
       c.fillStyle = "#0b0f0a"; c.fillRect(0, 0, w, h);
@@ -692,42 +611,16 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.fillStyle = "#FFC857"; [[9, 3], [10, 3], [10, 4], [10, 5]].forEach((p) => c.fillRect(p[0] * px + 1, p[1] * px + 1, px - 2, px - 2));
       c.fillStyle = "#f3efe4"; c.font = "bold 22px Courier New, monospace"; c.textAlign = "center"; c.fillText("PRESS START", w / 2, 30);
     })(cabCanvas.getContext("2d"), cabCanvas.width, cabCanvas.height);
-    const s = screen(0.62, 0.56, tex, 0, 1.47, 0.135, g); s.rotation.x = -0.12; arcadeScreen = s;
-    const l = new THREE.PointLight(0xffd98a, 0.45, 3.5, 2); l.position.set(2.8, 1.5, -1.8); scene.add(l);
-    register("arcade", g, [3.2, 2.2, -2.35], [1.75, EYE, -0.45], [3.25, 1.3, -2.4]);
+    arcadeScreen.material = screenMat(tex);
+    const c = centre(S.screen_arcade.map((p) => p.clone()));
+    register("arcade", "Arcade", 0.0, [c.x + 0.25, EYE, c.z + 1.25], [c.x, c.y - 0.1, c.z]);
   })();
 
-  /* Desk + laptop -> projects */
-  (function () {
-    const g = new THREE.Group(); scene.add(g);
-    const wood = mat(C.wood, { roughness: 0.55 }), leg = mat(0x1d1d1c);
-    box(0.75, 0.05, 1.7, wood, 3.58, 0.75, 0.7, g);
-    [[3.26, -0.1], [3.9, -0.1], [3.26, 1.5], [3.9, 1.5]].forEach((p) => box(0.05, 0.73, 0.05, leg, p[0], 0.365, p[1], g));
-    const lap = new THREE.Group(); lap.position.set(3.6, 0.775, 0.7); lap.rotation.y = -Math.PI / 2; g.add(lap);
-    box(0.42, 0.02, 0.28, mat(0x8d8f92, { roughness: 0.35, metalness: 0.6 }), 0, 0.01, 0, lap);
-    const lid = box(0.42, 0.28, 0.014, mat(0x8d8f92, { roughness: 0.35, metalness: 0.6 }), 0, 0.15, -0.16, lap); lid.rotation.x = -0.22;
-    const tex = canvasTex(420, 280, (c, w, h) => {
-      c.fillStyle = "#1b1c1a"; c.fillRect(0, 0, w, h);
-      c.fillStyle = "#2E2E2E"; c.fillRect(0, 0, w, 26);
-      ["#d94b3d", "#FFC857", "#508B3F"].forEach((col, i) => { c.fillStyle = col; c.beginPath(); c.arc(16 + i * 18, 13, 5, 0, Math.PI * 2); c.fill(); });
-      const cols = ["#508B3F", "#f3efe4", "#FFC857", "#8fb7e0"];
-      for (let i = 0; i < 12; i++) { c.fillStyle = cols[i % 4]; c.fillRect(20 + ((i * 3) % 4) * 18, 44 + i * 19, 90 + (i * 67) % 230, 8); }
-    });
-    const s = screen(0.39, 0.25, tex, 0, 0.152, -0.15, lap); s.rotation.x = -0.22;
-    cyl(0.045, 0.04, 0.1, mat(C.green), 3.5, 0.83, 1.25, g);
-    box(0.2, 0.03, 0.28, mat(0xf3efe4), 3.55, 0.79, 0.15, g).rotation.y = 0.2;
-    // chair
-    const ch = mat(0x262626);
-    box(0.46, 0.06, 0.46, ch, 2.85, 0.47, 0.7, g); box(0.06, 0.5, 0.46, ch, 2.62, 0.78, 0.7, g);
-    cyl(0.025, 0.025, 0.45, leg, 2.85, 0.23, 0.7, g, 8); cyl(0.24, 0.24, 0.03, leg, 2.85, 0.015, 0.7, g);
-    const l = new THREE.PointLight(0xbfd6ff, 0.3, 2.5, 2); l.position.set(3.2, 1.2, 0.7); scene.add(l);
-    register("laptop", g, [3.55, 1.32, 0.7], [2.15, EYE, 1.55], [3.6, 0.9, 0.7]);
-  })();
+  /* Laptop on the desk -> projects */
+  register("laptop", "Laptop", 0.06, [2.75, EYE, -3.75], [2.0, 0.9, -4.85]);
 
-  /* Framed poster -> about/contact */
+  /* Framed poster over the bed -> about/contact */
   (function () {
-    const g = new THREE.Group(); scene.add(g);
-    box(0.92, 1.16, 0.04, mat(0x1b1b1b), 2.0, 1.72, -2.975, g);
     const tex = canvasTex(400, 520, (c, w, h) => {
       c.fillStyle = "#2E2E2E"; c.fillRect(0, 0, w, h);
       c.fillStyle = "#FFC857"; c.beginPath(); c.arc(w / 2, 200, 120, 0, Math.PI * 2); c.fill();
@@ -743,24 +636,13 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       c.drawImage(photo, 88, 88, 224, 224); c.restore(); tex.needsUpdate = true;
     };
     photo.src = "/img/jay.jpg";
-    screen(0.82, 1.06, tex, 2.0, 1.72, -2.95, g);
-    register("frame", g, [2.0, 2.46, -2.95], [1.9, EYE, -1.1], [2.0, 1.72, -2.95]);
+    dyn.screen_frame.material = screenMat(tex);
+    const c = centre(S.screen_frame.map((p) => p.clone()));
+    register("frame", "Poster", 0.0, [3.55, EYE, -3.45], [c.x, c.y, c.z]);
   })();
 
-  /* Book stand -> free ebook signup.
-     An easel-style stand: the back board leans at the same angle as the book and
-     a shallow ledge holds the book's bottom edge, so nothing sits in front of the cover. */
+  /* The ebook on its easel, on the table behind the sofa -> free ebook signup */
   (function () {
-    const g = new THREE.Group(); g.position.set(0.8, 0, 1.0); g.rotation.y = 0.6; scene.add(g);
-    const dark = mat(0x1d1d1c, { roughness: 0.5 });
-    const wood = mat(C.wood, { roughness: 0.5 });
-    cyl(0.2, 0.24, 0.04, dark, 0, 0.02, 0, g);                                   // foot
-    cyl(0.03, 0.03, 1.0, dark, 0, 0.52, -0.02, g, 12);                            // post
-    const stand = new THREE.Group(); stand.position.set(0, 1.12, 0.03); stand.rotation.x = -0.4; g.add(stand);
-    box(0.4, 0.56, 0.025, wood, 0, 0.0, -0.03, stand);                            // back board
-    box(0.4, 0.025, 0.07, wood, 0, -0.27, 0.0, stand);                            // ledge
-    box(0.4, 0.018, 0.012, wood, 0, -0.2605, 0.035, stand);                       // low lip on the ledge, below the cover
-    const BW = 0.28, BH = 0.448;                                                  // same shape as the real cover (5:8)
     const cover = canvasTex(400, 640, (c, w, h) => {                             // drawn first, replaced by the real cover once it loads
       c.fillStyle = "#FFC857"; c.fillRect(0, 0, w, h);
       c.fillStyle = "#2E2E2E"; c.textAlign = "center";
@@ -778,12 +660,17 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     const img = new Image();
     img.onload = () => { const c = cover.image.getContext("2d"); c.drawImage(img, 0, 0, cover.image.width, cover.image.height); cover.needsUpdate = true; };
     img.src = "../ebook/cover-3d.jpg";
-    const book = new THREE.Group(); book.position.set(0, -0.2575 + BH / 2, 0.0); stand.add(book);
-    box(BW, BH, 0.03, mat(0xf3efe4), 0, 0, 0, book);                              // pages
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), screenMat(cover)); front.position.z = 0.0155; book.add(front);
-    const l = new THREE.PointLight(0xFFC857, 0.5, 2.6, 2); l.position.set(0.8, 1.55, 1.35); scene.add(l);
-    register("ebook", g, [0.8, 1.6, 1.0], [1.3, EYE, 2.1], [0.8, 1.15, 1.0]);
+    dyn.screen_ebook.material = screenMat(cover);
+    const a = S.screen_ebook, c = centre(a.map((p) => p.clone())), n = a[1].clone().sub(a[0]).cross(a[3].clone().sub(a[0])).normalize();
+    register("ebook", "Ebook", 0.04, [c.x + n.x * 1.15, EYE, c.z + n.z * 1.15], [c.x, c.y - 0.12, c.z]);
   })();
+
+  /* ---------- furniture you can't walk through ---------- */
+  const SOLID = ["Sofa", "SofaConsole", "CoffeeTable", "Console", "Bed", "Bench", "Nightstand", "Desk", "Chair", "Bookshelf", "Arcade", "Pouf",
+    "RubberPlant", "SnakePlant", "Tripod"];
+  const walls = SOLID.filter((k) => P[k]).map((k) => [P[k].min[0] - 0.2, P[k].max[0] + 0.2, P[k].min[2] - 0.2, P[k].max[2] + 0.2]);
+  walls.push([3.52 - 0.35, 3.52 + 0.35, -3.16 - 0.35, -3.16 + 0.35]);       // the arc lamp's base
+  const blocked = (x, z) => walls.some((w) => x > w[0] && x < w[1] && z > w[2] && z < w[3]);
 
   /* ---------- labels ---------- */
   const labelsEl = $("labels");
@@ -800,10 +687,10 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
 
   /* ---------- floor marker ---------- */
   const marker = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.2, 32), new THREE.MeshBasicMaterial({ color: C.gold, transparent: true, opacity: 0, toneMapped: false }));
-  marker.rotation.x = -Math.PI / 2; marker.position.y = 0.012; scene.add(marker);
+  marker.rotation.x = -Math.PI / 2; marker.position.y = 0.022; scene.add(marker);
 
   /* ---------- camera state ---------- */
-  const state = { x: 1.7, z: 2.3, yaw: 0.42, pitch: -0.04 };
+  const state = { x: 5.0, z: -0.75, yaw: 0.9, pitch: -0.06 };
   let moveTo = null, lookTo = null;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const angDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
@@ -812,7 +699,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     if (key === "remote") { setChannel(chIndex + 1, true); return; }
     if (key === "arcade" && arcadeScreen && GAMES.length) { enterArcade(); return; }
     const it = interactives.find((i) => i.key === key); if (!it) return;
-    moveTo = { x: it.view.x, z: it.view.z };
+    moveTo = { x: it.view.x, z: it.view.z, force: true };
     const dx = it.look.x - it.view.x, dy = it.look.y - EYE, dz = it.look.z - it.view.z;
     lookTo = { yaw: Math.atan2(-dx, -dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) };
     if (reduceMotion) { state.x = moveTo.x; state.z = moveTo.z; state.yaw = lookTo.yaw; state.pitch = lookTo.pitch; moveTo = lookTo = null; }
@@ -823,15 +710,17 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
 
   /* ---------- input ---------- */
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-  const targets = interactives.map((i) => i.group);
+  const targets = interactives.map((i) => i.hit);
   function pick(e) {
     const r = canvas.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(targets, true)[0];
+    const hit = ray.intersectObjects(targets, false)[0];
     if (hit && hit.object.userData.key) return { key: hit.object.userData.key };
-    const f = ray.intersectObject(floor)[0];
-    return f ? { point: f.point } : null;
+    const o = ray.ray.origin, d = ray.ray.direction;
+    if (d.y > -0.02) return null;                         // not pointing at the floor
+    const t = -o.y / d.y;
+    return { point: new THREE.Vector3(o.x + d.x * t, 0, o.z + d.z * t) };
   }
   let drag = null, hoverKey = null;
   canvas.addEventListener("pointerdown", (e) => {
@@ -856,9 +745,9 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     const p = pick(e); if (!p) return;
     if (p.key) { select(p.key); return; }
     closeCard();
-    const tx = clamp(p.point.x, -BOUNDS.x, BOUNDS.x), tz = clamp(p.point.z, -BOUNDS.z, BOUNDS.z);
+    const tx = clamp(p.point.x, BOUNDS.x0, BOUNDS.x1), tz = clamp(p.point.z, BOUNDS.z0, BOUNDS.z1);
     marker.position.x = tx; marker.position.z = tz; marker.material.opacity = 0.9;
-    if (reduceMotion) { state.x = tx; state.z = tz; } else { moveTo = { x: tx, z: tz }; }
+    if (reduceMotion) { if (!blocked(tx, tz)) { state.x = tx; state.z = tz; } } else { moveTo = { x: tx, z: tz }; }
   }
   canvas.addEventListener("pointerup", endDrag);
   canvas.addEventListener("pointercancel", endDrag);
@@ -884,137 +773,17 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   function resize() {
     const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h; camera.fov = w < h ? 78 : 66; camera.updateProjectionMatrix();
+    camera.aspect = w / h; camera.fov = w < h ? 76 : 64; camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize); resize();
 
-  /* ---------- looks: original, pencil sketch, anime ----------
-     "Original" draws the room exactly as before. The other two draw the same room into an
-     offscreen picture first, then redraw that picture with a filter (outlines from depth and
-     colour edges, plus hatching on paper or flat cel shading). Nothing in the room changes. */
-  const LOOKS = ["original", "pencil", "anime"];
-  const LOOK_KEY = "jaysstudio_look";
-  let look = "original";
-  let hasDepthTex = false;
-  try { hasDepthTex = !!(renderer.capabilities.isWebGL2 || renderer.extensions.get("WEBGL_depth_texture")); } catch (e) {}
-  const lookRT = new THREE.WebGLRenderTarget(2, 2, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
-  lookRT.texture.encoding = THREE.sRGBEncoding;           // same colours as the screen, so "original" and the filters start from one picture
-  if (hasDepthTex) { lookRT.depthTexture = new THREE.DepthTexture(2, 2); lookRT.depthTexture.type = THREE.UnsignedIntType; }
-  const lookMat = new THREE.ShaderMaterial({
-    toneMapped: false, depthTest: false, depthWrite: false,
-    uniforms: {
-      tColor: { value: lookRT.texture }, tDepth: { value: hasDepthTex ? lookRT.depthTexture : null },
-      useDepth: { value: hasDepthTex ? 1 : 0 }, mode: { value: 1 },
-      res: { value: new THREE.Vector2(2, 2) }, px: { value: 1 }, near: { value: camera.near }, far: { value: camera.far }
-    },
-    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
-    fragmentShader: `
-      precision highp float;
-      varying vec2 vUv;
-      uniform sampler2D tColor; uniform sampler2D tDepth; uniform int useDepth; uniform int mode;
-      uniform vec2 res; uniform float px; uniform float near; uniform float far;
-      float lum(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
-      float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2.0 - 1.0; return 2.0 * near * far / (far + near - z * (far - near)); }
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1,0)), f.x), mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y); }
-      /* outlines: where depth jumps (object silhouettes) or colour changes sharply */
-      float edges(vec2 uv, float w, float colourWeight){
-        vec2 t = w / res;
-        float e = 0.0;
-        if (useDepth == 1) {
-          float c = lin(uv);
-          float d = abs(lin(uv + vec2(t.x, 0.0)) - c) + abs(lin(uv - vec2(t.x, 0.0)) - c)
-                  + abs(lin(uv + vec2(0.0, t.y)) - c) + abs(lin(uv - vec2(0.0, t.y)) - c);
-          e = smoothstep(0.035, 0.09, d / c);
-        }
-        float l00 = lum(texture2D(tColor, uv + vec2(-t.x, -t.y)).rgb), l10 = lum(texture2D(tColor, uv + vec2(0.0, -t.y)).rgb), l20 = lum(texture2D(tColor, uv + vec2(t.x, -t.y)).rgb);
-        float l01 = lum(texture2D(tColor, uv + vec2(-t.x, 0.0)).rgb),                                                  l21 = lum(texture2D(tColor, uv + vec2(t.x, 0.0)).rgb);
-        float l02 = lum(texture2D(tColor, uv + vec2(-t.x, t.y)).rgb), l12 = lum(texture2D(tColor, uv + vec2(0.0, t.y)).rgb), l22 = lum(texture2D(tColor, uv + vec2(t.x, t.y)).rgb);
-        float gx = (l20 + 2.0 * l21 + l22) - (l00 + 2.0 * l01 + l02);
-        float gy = (l02 + 2.0 * l12 + l22) - (l00 + 2.0 * l10 + l20);
-        e = max(e, colourWeight * smoothstep(0.18, 0.5, length(vec2(gx, gy))));
-        return clamp(e, 0.0, 1.0);
-      }
-      float hatch(vec2 p, float ang, float gap){
-        vec2 q = p + 2.2 * vec2(noise(p * 0.05), noise(p * 0.05 + 7.3));       // a little wobble, like a hand drew it
-        float c = dot(q, vec2(cos(ang), sin(ang))) / gap;
-        float d = abs(fract(c) - 0.5) * gap;                                      // distance to the nearest stroke, in pixels
-        return 1.0 - smoothstep(0.35, 1.1, d);
-      }
-      vec3 rgb2hsv(vec3 c){ vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0); vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-        vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r)); float d = q.x - min(q.w, q.y); float e = 1.0e-10;
-        return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x); }
-      vec3 hsv2rgb(vec3 c){ vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0); return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y); }
-      void main(){
-        vec3 col = texture2D(tColor, vUv).rgb;
-        vec2 p = vUv * res / px;                                                  // CSS pixels, so strokes look the same on any screen
-        if (mode == 1) {
-          /* pencil: graphite on warm paper. Lift the dark night room so it reads as shading, not a black page. */
-          float l = clamp(pow(lum(col), 0.55) * 1.15, 0.0, 1.0);
-          float ink = 0.0;
-          ink = max(ink, hatch(p, 0.785, 5.0) * (1.0 - smoothstep(0.62, 0.80, l)) * 0.55);
-          ink = max(ink, hatch(p, -0.785, 5.0) * (1.0 - smoothstep(0.42, 0.58, l)) * 0.65);
-          ink = max(ink, hatch(p, 0.0, 4.0) * (1.0 - smoothstep(0.22, 0.38, l)) * 0.75);
-          ink = max(ink, hatch(p, 1.571, 3.5) * (1.0 - smoothstep(0.08, 0.2, l)) * 0.85);
-          float e = edges(vUv, 1.1 * px, 0.9) * (0.75 + 0.25 * noise(p * 0.3));
-          ink = max(ink, e * 0.95);
-          vec3 paper = vec3(0.965, 0.945, 0.9) * (0.96 + 0.04 * noise(p * 0.7)) * (0.985 + 0.015 * hash(floor(p)));
-          vec3 graphite = vec3(0.2, 0.2, 0.23);
-          gl_FragColor = vec4(mix(paper, graphite, ink), 1.0);
-        } else {
-          /* anime: flat cel bands, richer colour, bold dark outlines */
-          vec3 hsv = rgb2hsv(col);
-          float v = pow(hsv.z, 0.8);
-          float band = floor(v * 4.0) / 4.0, f = fract(v * 4.0);
-          float vq = band + smoothstep(0.42, 0.58, f) / 4.0;                       // crisp steps between tones
-          hsv.y = clamp(hsv.y * 1.45 + 0.04, 0.0, 1.0);
-          hsv.z = clamp(mix(vq, v, 0.15) * 1.12 + 0.04, 0.0, 1.0);
-          vec3 c = hsv2rgb(hsv);
-          c = mix(c * vec3(0.82, 0.86, 1.08), c, smoothstep(0.15, 0.55, hsv.z));   // cool blue shadows, warm-ish lights
-          float e = edges(vUv, 1.4 * px, 0.45);
-          gl_FragColor = vec4(mix(c, vec3(0.07, 0.06, 0.12), e), 1.0);
-        }
-      }`
-  });
-  const lookScene = new THREE.Scene(), lookCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const lookQuad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), lookMat); lookQuad.frustumCulled = false; lookScene.add(lookQuad);
-  const dbSize = new THREE.Vector2();
-  function sizeLook() {
-    renderer.getDrawingBufferSize(dbSize);
-    if (lookRT.width !== dbSize.x || lookRT.height !== dbSize.y) lookRT.setSize(dbSize.x, dbSize.y);
-    lookMat.uniforms.res.value.copy(dbSize); lookMat.uniforms.px.value = renderer.getPixelRatio();
-  }
-  function draw() {
-    if (look !== "original") {
-      try {
-        sizeLook();
-        lookMat.uniforms.mode.value = look === "pencil" ? 1 : 2;
-        renderer.setRenderTarget(lookRT); renderer.render(scene, camera);
-        renderer.setRenderTarget(null); renderer.render(lookScene, lookCam);
-        return;
-      } catch (e) { try { renderer.setRenderTarget(null); } catch (e2) {} setLook("original", false); }   // if a filter can't run here, fall back to the original look
-    }
-    renderer.render(scene, camera);
-  }
-  function setLook(name, remember) {
-    look = LOOKS.indexOf(name) >= 0 ? name : "original";
-    document.querySelectorAll("#looks button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.look === look)));
-    if (remember) { try { localStorage.setItem(LOOK_KEY, look); } catch (e) {} }
-  }
-  document.querySelectorAll("#looks button").forEach((b) => b.addEventListener("click", () => { setLook(b.dataset.look, true); canvas.focus({ preventScroll: true }); }));
-  (function () {
-    let first = null;
-    try { first = new URLSearchParams(location.search).get("look"); } catch (e) {}
-    if (!first) { try { first = localStorage.getItem(LOOK_KEY); } catch (e) {} }
-    setLook(first || "original", false);
-  })();
+  function draw() { renderer.render(scene, camera); }
 
   /* ---------- YouTube player over the TV screen ----------
      Shows while the TV card is open and the camera has arrived. Closing the card
      removes the player, which also stops the sound. */
   const tvBox = $("tvPlayer");
-  const tvCorners = [[-1.22, 1.8], [0.42, 1.8], [-1.22, 0.9], [0.42, 0.9]].map((p) => new THREE.Vector3(p[0], p[1], -2.91));
+  const tvCorners = S.screen_tv;
   let tvSrc = "";
   function updateTVPlayer(w, h) {
     const want = cardKey === "tv" ? (window.SITE_PLAYER ? window.SITE_PLAYER(CHANNELS[chIndex]) : "") : "";
@@ -1049,7 +818,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   const phoneBox = $("phonePlayer"), phoneIn = $("phoneIn");
   const TT = (LINKS.phone && LINKS.phone.url) || "", TT_HANDLE = (TT.match(/@([\w.]+)/) || [])[1] || "";
   let phoneOn = false;
-  const phoneCorners = [[-0.049, 0.107], [0.049, 0.107], [-0.049, -0.107], [0.049, -0.107]].map((p) => new THREE.Vector3(p[0], p[1], 0.001));
+  const phoneCorners = S.screen_phone;
   const pv = new THREE.Vector3();
   function loadTikTok() {
     // TikTok's own profile embed page in a frame. It shows on browsers that block TikTok's embed.js script.
@@ -1067,7 +836,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   function phoneHidden() {
     if (performance.now() - phoneCheck < 200) return phoneBlocked;
     phoneCheck = performance.now();
-    phoneScreen.getWorldPosition(phoneAt); camera.getWorldPosition(camAt);
+    phoneAt.copy(phoneCenter); camera.getWorldPosition(camAt);
     const dist = camAt.distanceTo(phoneAt);
     phoneRay.set(camAt, phoneAt.clone().sub(camAt).normalize()); phoneRay.far = dist - 0.04;
     const hits = phoneRay.intersectObjects(scene.children, true);
@@ -1079,10 +848,9 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     if (!want) { phoneBox.hidden = true; return; }
     if (!phoneOn) { loadTikTok(); phoneOn = true; }
     phoneBox.style.pointerEvents = cardKey === "phone" ? "auto" : "none";
-    phoneScreen.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, behind = false;
     for (const c of phoneCorners) {
-      pv.copy(c); phoneScreen.localToWorld(pv); pv.project(camera); if (pv.z > 1 || pv.z < -1) behind = true;
+      pv.copy(c).project(camera); if (pv.z > 1 || pv.z < -1) behind = true;
       const sx = (pv.x * 0.5 + 0.5) * w, sy = (-pv.y * 0.5 + 0.5) * h;
       x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
     }
@@ -1131,8 +899,7 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     cabShown = defaultIndex(); const g = GAMES[cabShown];
     if (g) { if (g.art.complete) drawCabinet(); else g.art.addEventListener("load", drawCabinet, { once: true }); }
   }
-  const AW = 0.62, AH = 0.56;
-  const gameCorners = [[-AW / 2, AH / 2], [AW / 2, AH / 2], [-AW / 2, -AH / 2], [AW / 2, -AH / 2]].map((p) => new THREE.Vector3(p[0], p[1], 0.001));
+  const gameCorners = S.screen_arcade, AW = gameCorners[0].distanceTo(gameCorners[1]);
   const gv = new THREE.Vector3();
   let arcadeOn = false, sel = 0, playing = null, gameFrame = null, selEl = null;
   refreshCabinet();
@@ -1157,23 +924,22 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
     arcadeStick.rotation.z += (-x * L - arcadeStick.rotation.z) * k;   // lean left or right
     arcadeStick.rotation.x += (y * L - arcadeStick.rotation.x) * k;    // lean toward or away from you
     arcadeBtns.forEach((b, i) => {
-      const down = btnHeld[i] || now < tapUntil.b[i];
-      const want = 1.01 - (down ? 0.012 : 0);
-      b.position.y += (want - b.position.y) * Math.min(1, dt * 30);
+      const want = (btnHeld[i % 2] || now < tapUntil.b[i % 2]) ? 1 : 0;
+      b.down += (want - b.down) * Math.min(1, dt * 30);
+      b.mesh.position.copy(b.rest).addScaledVector(b.n, -0.006 * b.down);
     });
   }
 
   function frameArcade() {
     // stand back far enough to see the whole screen and the controls under it
-    arcadeScreen.updateWorldMatrix(true, false);
-    const c = new THREE.Vector3(); arcadeScreen.getWorldPosition(c);
-    const n = new THREE.Vector3(0, 0, 1).transformDirection(arcadeScreen.matrixWorld); n.y = 0; n.normalize();
+    const c = centre(gameCorners.map((p) => p.clone()));
+    const n = gameCorners[1].clone().sub(gameCorners[0]).cross(gameCorners[3].clone().sub(gameCorners[0])); n.y = 0; n.normalize();
     const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
     const t = 2 * Math.tan((camera.fov * Math.PI) / 360);
     const d = Math.max(0.8 / (0.92 * t), AW / (0.9 * t * (w / h))) + 0.02;
-    const vx = clamp(c.x + n.x * d, -BOUNDS.x, BOUNDS.x), vz = clamp(c.z + n.z * d, -BOUNDS.z, BOUNDS.z);
-    moveTo = { x: vx, z: vz };
-    const dx = c.x - vx, dy = 1.37 - EYE, dz = c.z - vz;
+    const vx = clamp(c.x + n.x * d, BOUNDS.x0, BOUNDS.x1), vz = clamp(c.z + n.z * d, BOUNDS.z0, BOUNDS.z1);
+    moveTo = { x: vx, z: vz, force: true };
+    const dx = c.x - vx, dy = c.y - 0.06 - EYE, dz = c.z - vz;
     lookTo = { yaw: Math.atan2(-dx, -dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) };
     if (reduceMotion) { state.x = vx; state.z = vz; state.yaw = lookTo.yaw; state.pitch = lookTo.pitch; moveTo = lookTo = null; }
   }
@@ -1292,10 +1058,9 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   function updateGamePlayer(w, h) {
     if (!arcadeOn) return;
     if ((moveTo || lookTo) && !gameBox.children.length) { gameBox.hidden = true; return; }
-    arcadeScreen.updateWorldMatrix(true, false);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, behind = false;
     for (const c of gameCorners) {
-      gv.copy(c); arcadeScreen.localToWorld(gv); gv.project(camera); if (gv.z > 1 || gv.z < -1) behind = true;
+      gv.copy(c).project(camera); if (gv.z > 1 || gv.z < -1) behind = true;
       const sx = (gv.x * 0.5 + 0.5) * w, sy = (-gv.y * 0.5 + 0.5) * h;
       x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
     }
@@ -1313,10 +1078,11 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   const GAME_W = 960;   // width each game is laid out at inside the cabinet before it is shrunk to fit
 
   /* ---------- loop ---------- */
-  const v = new THREE.Vector3(); let last = performance.now();
+  const v = new THREE.Vector3(); let last = performance.now(); const perf = { n: 0, t: 0 };
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
 
+    const ox = state.x, oz = state.z, forced = !!(moveTo && moveTo.force);
     const f = (keys.f ? 1 : 0) - (keys.b ? 1 : 0), s = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
     if (keys.tl) state.yaw += 1.8 * dt; if (keys.tr) state.yaw -= 1.8 * dt;
     if (f || s) {
@@ -1333,7 +1099,16 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
       state.yaw += dy * k; state.pitch += dp * k;
       if (Math.abs(dy) < 0.002 && Math.abs(dp) < 0.002) lookTo = null;
     }
-    state.x = clamp(state.x, -BOUNDS.x, BOUNDS.x); state.z = clamp(state.z, -BOUNDS.z, BOUNDS.z);
+    state.x = clamp(state.x, BOUNDS.x0, BOUNDS.x1); state.z = clamp(state.z, BOUNDS.z0, BOUNDS.z1);
+    if (!forced && blocked(state.x, state.z) && !blocked(ox, oz)) {       // slide along furniture instead of walking through it
+      if (!blocked(state.x, oz)) state.z = oz;
+      else if (!blocked(ox, state.z)) state.x = ox;
+      else { state.x = ox; state.z = oz; }
+      if (moveTo && Math.hypot(state.x - ox, state.z - oz) < 1e-4) moveTo = null;
+    }
+    /* a phone that can't keep up in Full gets fewer pixels to draw, without reloading */
+    if (!LITE && perf.n >= 0) { perf.n++; perf.t += dt;
+      if (perf.t > 4) { if (perf.n / perf.t < 27 && pixelRatio > 1) { pixelRatio = 1; renderer.setPixelRatio(1); resize(); } perf.n = -1; } }
     if (marker.material.opacity > 0) marker.material.opacity = Math.max(0, marker.material.opacity - dt * (moveTo ? 0.4 : 2.5));
 
     const bob = (moveTo || f || s) && !reduceMotion ? Math.sin(now * 0.011) * 0.018 : 0;
@@ -1373,6 +1148,8 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
   const hot = window.claude && window.claude.hot;
   if (hot && hot.snapshot) hot.snapshot(() => ({ x: state.x, z: state.z, yaw: state.yaw, pitch: state.pitch, ch: chIndex }));
   if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+
+  }   // boot
 })();
 </script>
 </body>
