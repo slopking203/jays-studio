@@ -568,6 +568,24 @@ const FLAT_URL = (SITE.versions && SITE.versions.flat) || "";
 
   /* Remote on the coffee table -> next TV channel */
   register("remote", "Remote", 0.1, [0, 0, 0], [0, 0, 0]);
+  (function () {
+    // The remote is too small for its buttons to survive in the room's shared texture, so its face is drawn here.
+    const tex = canvasTex(128, 512, (g, w, h) => {
+      const rr = (x, y, bw, bh, r, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + bw, y, x + bw, y + bh, r); g.arcTo(x + bw, y + bh, x, y + bh, r); g.arcTo(x, y + bh, x, y, r); g.arcTo(x, y, x + bw, y, r); g.fill(); };
+      rr(0, 0, w, h, 26, "#1d1e1d"); rr(5, 5, w - 10, h - 10, 22, "#2b2c2b");
+      g.fillStyle = "#FFC857"; g.beginPath(); g.arc(w / 2, 52, 19, 0, 7); g.fill();                      // power
+      g.fillStyle = "#565856"; g.beginPath(); g.arc(w / 2, 162, 46, 0, 7); g.fill();                     // direction ring
+      g.fillStyle = "#2b2c2b"; g.beginPath(); g.arc(w / 2, 162, 19, 0, 7); g.fill();
+      g.fillStyle = "#d9d5ca"; [[64, 126], [64, 198], [28, 162], [100, 162]].forEach((p) => { g.beginPath(); g.arc(p[0], p[1], 5, 0, 7); g.fill(); });
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++)
+        rr(16 + c * 36, 246 + r * 56, 26, 34, 9, r === 0 && c === 2 ? "#508B3F" : (r === 0 && c === 0 ? "#FFC857" : "#8a8c88"));
+    });
+    const b = P.Remote, face = new THREE.Mesh(new THREE.PlaneGeometry(0.044, 0.168), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    tex.flipY = true; tex.needsUpdate = true;
+    face.rotation.order = "YXZ"; face.rotation.y = -28 * Math.PI / 180; face.rotation.x = -Math.PI / 2;
+    face.position.set((b.min[0] + b.max[0]) / 2, b.max[1] + 0.0015, (b.min[2] + b.max[2]) / 2);
+    scene.add(face);
+  })();
 
   /* Phone on the ring-light tripod -> TikTok */
   const phoneScreen = dyn.screen_phone, phoneCenter = centre(S.screen_phone.map((p) => p.clone()));
